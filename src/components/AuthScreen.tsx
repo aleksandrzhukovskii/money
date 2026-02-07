@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useAuthStore } from '@/stores/auth'
 import { encrypt, decrypt } from '@/lib/crypto'
 import { validateCredentials } from '@/lib/githubSync'
-import { hasBiometricCredential, authenticateWithBiometric, removeBiometric } from '@/lib/biometric'
+import { hasBiometricCredential, authenticateWithBiometric, removeBiometric, getBiometricName } from '@/lib/biometric'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -73,7 +73,7 @@ export function AuthScreen() {
       const creds = await loadCredentials(pw)
       useAuthStore.getState().setAuth(pw, creds.repo, creds.token)
     } catch {
-      setError('Biometric authentication failed')
+      setError('Authentication failed')
     }
     setLoading(false)
   }
@@ -145,7 +145,7 @@ export function AuthScreen() {
                 disabled={loading}
               >
                 <Fingerprint className="h-5 w-5 mr-2" />
-                {loading ? 'Authenticating...' : 'Unlock with Face ID'}
+                {loading ? 'Unlocking...' : `Unlock with ${getBiometricName()}`}
               </Button>
             )}
             <form onSubmit={handleLogin} className="space-y-4">

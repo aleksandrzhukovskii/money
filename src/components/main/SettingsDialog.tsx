@@ -3,7 +3,7 @@ import { useDatabase, deleteLocalDatabase, resetDatabase } from '@/hooks/useData
 import { useBackup } from '@/hooks/useBackup'
 import { useAuthStore } from '@/stores/auth'
 import { clearCredentials } from '@/components/AuthScreen'
-import { isBiometricAvailable, hasBiometricCredential, registerBiometric, removeBiometric } from '@/lib/biometric'
+import { isBiometricAvailable, hasBiometricCredential, registerBiometric, removeBiometric, getBiometricName } from '@/lib/biometric'
 import { getSetting, setSetting } from '@/db/queries/settings'
 import { CurrencySelect } from '@/components/CurrencySelect'
 import { Button } from '@/components/ui/button'
@@ -86,19 +86,19 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       const ok = await registerBiometric(password)
       if (ok) {
         setBiometricEnabled(true)
-        toast.success('Biometric unlock enabled')
+        toast.success(`${getBiometricName()} enabled`)
       } else {
-        toast.error('Biometric not supported on this device')
+        toast.error(`${getBiometricName()} not supported on this device`)
       }
     } catch {
-      toast.error('Failed to enable biometric')
+      toast.error(`Failed to enable ${getBiometricName()}`)
     }
   }
 
   function handleDisableBiometric() {
     removeBiometric()
     setBiometricEnabled(false)
-    toast.success('Biometric unlock disabled')
+    toast.success(`${getBiometricName()} disabled`)
   }
 
   function handleLogout() {
@@ -150,18 +150,18 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
               {/* Biometric Unlock */}
               <div>
-                <Label>Biometric Unlock</Label>
+                <Label>{getBiometricName()}</Label>
                 <p className="text-xs text-muted-foreground mb-1">
-                  Use Face ID or Touch ID to unlock the app.
+                  Use {getBiometricName()} to unlock the app.
                 </p>
                 <div className="mt-2">
                   {biometricEnabled ? (
                     <Button variant="outline" size="sm" onClick={handleDisableBiometric}>
-                      Disable Face ID
+                      Disable {getBiometricName()}
                     </Button>
                   ) : (
                     <Button variant="outline" size="sm" onClick={handleEnableBiometric}>
-                      Enable Face ID
+                      Enable {getBiometricName()}
                     </Button>
                   )}
                 </div>
