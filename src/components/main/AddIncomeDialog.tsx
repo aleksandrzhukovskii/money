@@ -69,7 +69,7 @@ export function AddIncomeDialog({ open, onOpenChange, editing }: AddIncomeDialog
             <DialogTitle>{editing ? 'Edit Income' : 'Add Income'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            <div>
+            <div className="space-y-1.5">
               <Label htmlFor="income-name">Name</Label>
               <Input
                 id="income-name"
@@ -80,11 +80,11 @@ export function AddIncomeDialog({ open, onOpenChange, editing }: AddIncomeDialog
               />
               {nameTaken && <p className="text-xs text-red-500 mt-1">Name already exists</p>}
             </div>
-            <div>
+            <div className="space-y-1.5">
               <Label>Currency</Label>
               <CurrencySelect value={currency} onChange={setCurrency} />
             </div>
-            <div>
+            <div className="space-y-1.5">
               <Label htmlFor="income-expected">Expected Monthly Amount</Label>
               <Input
                 id="income-expected"

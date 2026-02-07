@@ -68,7 +68,7 @@ export function AddSpendingTypeDialog({ open, onOpenChange, editing }: AddSpendi
             <DialogTitle>{editing ? 'Edit Spending' : 'Add Spending'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            <div>
+            <div className="space-y-1.5">
               <Label htmlFor="st-name">Name</Label>
               <Input
                 id="st-name"
@@ -79,7 +79,7 @@ export function AddSpendingTypeDialog({ open, onOpenChange, editing }: AddSpendi
               />
               {nameTaken && <p className="text-xs text-red-500 mt-1">Name already exists</p>}
             </div>
-            <div>
+            <div className="space-y-1.5">
               <Label>Currency</Label>
               <CurrencySelect value={currency} onChange={setCurrency} />
             </div>

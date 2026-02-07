@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react'
 import {
   DndContext,
   DragOverlay,
-  MouseSensor,
-  TouchSensor,
+  PointerSensor,
   useSensor,
   useSensors,
   type DragStartEvent,
@@ -62,11 +61,8 @@ export function MainPage() {
   const [activeId, setActiveId] = useState<string | null>(null)
 
   const sensors = useSensors(
-    useSensor(MouseSensor, {
-      activationConstraint: { distance: 8 },
-    }),
-    useSensor(TouchSensor, {
-      activationConstraint: { delay: 300, tolerance: 5 },
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 3 },
     }),
   )
 

@@ -200,7 +200,7 @@ export function TransactionDialog({
 
         <div className="space-y-4 py-2">
           {/* Amount */}
-          <div>
+          <div className="space-y-1.5">
             <Label htmlFor="tx-amount">Amount ({effSourceCurrency})</Label>
             <Input
               id="tx-amount"
@@ -232,7 +232,7 @@ export function TransactionDialog({
               )}
 
               <div className="flex items-end gap-2">
-                <div className="flex-1">
+                <div className="flex-1 space-y-1.5">
                   <Label htmlFor="tx-converted">Converted ({effDestCurrency})</Label>
                   <Input
                     id="tx-converted"
@@ -257,7 +257,7 @@ export function TransactionDialog({
           )}
 
           {/* Date */}
-          <div>
+          <div className="space-y-1.5">
             <Label htmlFor="tx-date">Date</Label>
             <Input
               id="tx-date"
@@ -268,7 +268,7 @@ export function TransactionDialog({
           </div>
 
           {/* Comment */}
-          <div>
+          <div className="space-y-1.5">
             <Label htmlFor="tx-comment">Comment</Label>
             <Input
               id="tx-comment"
@@ -279,9 +279,9 @@ export function TransactionDialog({
           </div>
 
           {/* Tags */}
-          <div>
+          <div className="space-y-1.5">
             <Label>Tags</Label>
-            <div className="mt-1">
+            <div>
               <TagPicker selectedTagIds={tagIds} onChange={setTagIds} />
             </div>
           </div>
