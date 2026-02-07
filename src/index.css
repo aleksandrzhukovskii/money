@@ -138,6 +138,12 @@ body {
   }
 }
 
+/* Prevent iOS touch callout on draggable elements */
+[style*="touch-action"] {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+}
+
 /* Hide scrollbar for carousels */
 .scrollbar-hide::-webkit-scrollbar {
   display: none;

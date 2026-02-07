@@ -10,7 +10,7 @@ export function DraggableCard({ id, children }: DraggableCardProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id })
 
   return (
-    <div ref={setNodeRef} {...attributes} {...listeners}>
+    <div ref={setNodeRef} style={{ touchAction: 'none' }} {...attributes} {...listeners}>
       {typeof children.type === 'string'
         ? children
         : { ...children, props: { ...children.props, isDragging } }}

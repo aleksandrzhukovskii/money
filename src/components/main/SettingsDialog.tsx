@@ -3,6 +3,7 @@ import { useDatabase, deleteLocalDatabase, resetDatabase } from '@/hooks/useData
 import { useBackup } from '@/hooks/useBackup'
 import { useAuthStore } from '@/stores/auth'
 import { clearCredentials } from '@/components/AuthScreen'
+import { isBiometricAvailable, hasBiometricCredential, registerBiometric, removeBiometric } from '@/lib/biometric'
 import { getSetting, setSetting } from '@/db/queries/settings'
 import { CurrencySelect } from '@/components/CurrencySelect'
 import { Button } from '@/components/ui/button'
@@ -29,10 +30,16 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [displayCurrency, setDisplayCurrency] = useState('')
+  const [biometricSupported, setBiometricSupported] = useState(false)
+  const [biometricEnabled, setBiometricEnabled] = useState(false)
 
   useEffect(() => {
     if (open && db) {
       setDisplayCurrency(getSetting(db, 'display_currency') ?? '')
+    }
+    if (open) {
+      isBiometricAvailable().then(setBiometricSupported)
+      setBiometricEnabled(hasBiometricCredential())
     }
   }, [open, db])
 
@@ -72,9 +79,32 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
+  async function handleEnableBiometric() {
+    const password = useAuthStore.getState().password
+    if (!password) return
+    try {
+      const ok = await registerBiometric(password)
+      if (ok) {
+        setBiometricEnabled(true)
+        toast.success('Biometric unlock enabled')
+      } else {
+        toast.error('Biometric not supported on this device')
+      }
+    } catch {
+      toast.error('Failed to enable biometric')
+    }
+  }
+
+  function handleDisableBiometric() {
+    removeBiometric()
+    setBiometricEnabled(false)
+    toast.success('Biometric unlock disabled')
+  }
+
   function handleLogout() {
     useAuthStore.getState().clearAuth()
     clearCredentials()
+    removeBiometric()
     deleteLocalDatabase()
     resetDatabase()
     onOpenChange(false)
@@ -113,6 +143,31 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               </Button>
             </div>
           </div>
+
+          {biometricSupported && (
+            <>
+              <Separator />
+
+              {/* Biometric Unlock */}
+              <div>
+                <Label>Biometric Unlock</Label>
+                <p className="text-xs text-muted-foreground mb-1">
+                  Use Face ID or Touch ID to unlock the app.
+                </p>
+                <div className="mt-2">
+                  {biometricEnabled ? (
+                    <Button variant="outline" size="sm" onClick={handleDisableBiometric}>
+                      Disable Face ID
+                    </Button>
+                  ) : (
+                    <Button variant="outline" size="sm" onClick={handleEnableBiometric}>
+                      Enable Face ID
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
 
           <Separator />
 

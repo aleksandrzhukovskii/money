@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuthStore } from '@/stores/auth'
 import { encrypt, decrypt } from '@/lib/crypto'
 import { validateCredentials } from '@/lib/githubSync'
+import { hasBiometricCredential, authenticateWithBiometric, removeBiometric } from '@/lib/biometric'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -12,6 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { Fingerprint } from 'lucide-react'
 
 const STORAGE_KEY = 'money-tracker-credentials'
 
@@ -57,6 +59,24 @@ export function AuthScreen() {
   const [token, setToken] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [biometricAvailable, setBiometricAvailable] = useState(false)
+
+  useEffect(() => {
+    setBiometricAvailable(hasBiometricCredential())
+  }, [])
+
+  async function handleBiometric() {
+    setLoading(true)
+    setError(null)
+    try {
+      const pw = await authenticateWithBiometric()
+      const creds = await loadCredentials(pw)
+      useAuthStore.getState().setAuth(pw, creds.repo, creds.token)
+    } catch {
+      setError('Biometric authentication failed')
+    }
+    setLoading(false)
+  }
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
@@ -98,6 +118,8 @@ export function AuthScreen() {
 
   function handleSwitchToSetup() {
     clearCredentials()
+    removeBiometric()
+    setBiometricAvailable(false)
     setMode('setup')
     setPassword('')
     setConfirmPassword('')
@@ -115,6 +137,17 @@ export function AuthScreen() {
             <CardDescription>Enter your password to unlock</CardDescription>
           </CardHeader>
           <CardContent>
+            {biometricAvailable && (
+              <Button
+                variant="outline"
+                className="w-full mb-4"
+                onClick={handleBiometric}
+                disabled={loading}
+              >
+                <Fingerprint className="h-5 w-5 mr-2" />
+                {loading ? 'Authenticating...' : 'Unlock with Face ID'}
+              </Button>
+            )}
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-1.5">
                 <Label htmlFor="password">Password</Label>

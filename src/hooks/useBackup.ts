@@ -192,13 +192,13 @@ export function useBackup() {
     }
   }, [exportRaw, importRaw, persist])
 
-  // Auto-push after writes (debounced 60s)
+  // Auto-push after writes (debounced 3s)
   const schedulePush = useCallback(() => {
     if (!getGitHubConfig()) return
     if (pushTimer.current) clearTimeout(pushTimer.current)
     pushTimer.current = setTimeout(() => {
       push()
-    }, 60_000)
+    }, 3_000)
   }, [push])
 
   return {
