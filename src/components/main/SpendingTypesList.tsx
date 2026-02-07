@@ -2,15 +2,17 @@ import { useSpendingTypesStore } from '@/stores/spendingTypes'
 import { DroppableTarget } from './DroppableTarget'
 import { EntityCard } from './EntityCard'
 import { AddCard } from './AddCard'
+import { matchesFilter } from '@/lib/filter'
 import type { SpendingType } from '@/types/database'
 
 interface SpendingTypesListProps {
   onAddClick: () => void
   onEditClick: (spendingType: SpendingType) => void
   activeSource: string | null
+  filter: string
 }
 
-export function SpendingTypesList({ onAddClick, onEditClick, activeSource }: SpendingTypesListProps) {
+export function SpendingTypesList({ onAddClick, onEditClick, activeSource, filter }: SpendingTypesListProps) {
   const { items, monthlySpent } = useSpendingTypesStore()
 
   const isValidTarget = activeSource?.startsWith('budget-') ?? false
@@ -21,7 +23,7 @@ export function SpendingTypesList({ onAddClick, onEditClick, activeSource }: Spe
         Spendings{items.length > 0 && ` (${items.length})`}
       </h2>
       <div className="flex flex-wrap gap-3">
-        {items.map((item) => (
+        {items.filter(i => matchesFilter(i.name, filter)).map((item) => (
           <DroppableTarget
             key={item.id}
             id={`spending-${item.id}`}

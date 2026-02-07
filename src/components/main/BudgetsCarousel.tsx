@@ -3,15 +3,17 @@ import { DraggableCard } from './DraggableCard'
 import { DroppableTarget } from './DroppableTarget'
 import { EntityCard } from './EntityCard'
 import { AddCard } from './AddCard'
+import { matchesFilter } from '@/lib/filter'
 import type { BudgetWithBalance } from '@/types/database'
 
 interface BudgetsCarouselProps {
   onAddClick: () => void
   onEditClick: (budget: BudgetWithBalance) => void
   activeSource: string | null
+  filter: string
 }
 
-export function BudgetsCarousel({ onAddClick, onEditClick, activeSource }: BudgetsCarouselProps) {
+export function BudgetsCarousel({ onAddClick, onEditClick, activeSource, filter }: BudgetsCarouselProps) {
   const { itemsWithBalances } = useBudgetsStore()
 
   function isValidTarget(budgetId: number): boolean {
@@ -28,8 +30,8 @@ export function BudgetsCarousel({ onAddClick, onEditClick, activeSource }: Budge
       <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">
         Budgets{itemsWithBalances.length > 0 && ` (${itemsWithBalances.length})`}
       </h2>
-      <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide" style={{ touchAction: 'pan-y' }}>
-        {itemsWithBalances.map((budget) => (
+      <div className="flex flex-wrap gap-3">
+        {itemsWithBalances.filter(b => matchesFilter(b.name, filter)).map((budget) => (
           <DroppableTarget
             key={budget.id}
             id={`budget-${budget.id}`}

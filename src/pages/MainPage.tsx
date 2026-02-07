@@ -24,7 +24,8 @@ import { AddSpendingTypeDialog } from '@/components/main/AddSpendingTypeDialog'
 import { SettingsDialog } from '@/components/main/SettingsDialog'
 import { TransactionDialog } from '@/components/main/TransactionDialog'
 import { Button } from '@/components/ui/button'
-import { Settings } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Settings, Search } from 'lucide-react'
 import type { Income, Budget, BudgetWithBalance, SpendingType, TransactionType } from '@/types/database'
 
 interface TransactionDialogState {
@@ -57,6 +58,9 @@ export function MainPage() {
   const [editingIncome, setEditingIncome] = useState<Income | null>(null)
   const [editingBudget, setEditingBudget] = useState<Budget | null>(null)
   const [editingSpendingType, setEditingSpendingType] = useState<SpendingType | null>(null)
+
+  // Filter
+  const [filter, setFilter] = useState('')
 
   // Drag state
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -170,6 +174,18 @@ export function MainPage() {
         </Button>
       </header>
 
+      <div className="px-4 pt-3">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            placeholder="Filter... (use | or , for multiple)"
+            className="pl-9"
+          />
+        </div>
+      </div>
+
       <DndContext
         sensors={sensors}
         onDragStart={handleDragStart}
@@ -180,18 +196,21 @@ export function MainPage() {
           <IncomesCarousel
             onAddClick={() => { setEditingIncome(null); setIncomeDialogOpen(true) }}
             onEditClick={(income) => { setEditingIncome(income); setIncomeDialogOpen(true) }}
+            filter={filter}
           />
 
           <BudgetsCarousel
             onAddClick={() => { setEditingBudget(null); setBudgetDialogOpen(true) }}
             onEditClick={(budget: BudgetWithBalance) => { setEditingBudget(budget); setBudgetDialogOpen(true) }}
             activeSource={activeId}
+            filter={filter}
           />
 
           <SpendingTypesList
             onAddClick={() => { setEditingSpendingType(null); setSpendingDialogOpen(true) }}
             onEditClick={(st) => { setEditingSpendingType(st); setSpendingDialogOpen(true) }}
             activeSource={activeId}
+            filter={filter}
           />
         </div>
 

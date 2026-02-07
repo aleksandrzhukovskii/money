@@ -2,14 +2,16 @@ import { useIncomesStore } from '@/stores/incomes'
 import { DraggableCard } from './DraggableCard'
 import { EntityCard } from './EntityCard'
 import { AddCard } from './AddCard'
+import { matchesFilter } from '@/lib/filter'
 import type { Income } from '@/types/database'
 
 interface IncomesCarouselProps {
   onAddClick: () => void
   onEditClick: (income: Income) => void
+  filter: string
 }
 
-export function IncomesCarousel({ onAddClick, onEditClick }: IncomesCarouselProps) {
+export function IncomesCarousel({ onAddClick, onEditClick, filter }: IncomesCarouselProps) {
   const { items, monthlyEarned } = useIncomesStore()
 
   function getProgress(income: Income): number | undefined {
@@ -23,8 +25,8 @@ export function IncomesCarousel({ onAddClick, onEditClick }: IncomesCarouselProp
       <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">
         Incomes{items.length > 0 && ` (${items.length})`}
       </h2>
-      <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide" style={{ touchAction: 'pan-y' }}>
-        {items.map((income) => (
+      <div className="flex flex-wrap gap-3">
+        {items.filter(i => matchesFilter(i.name, filter)).map((income) => (
           <DraggableCard key={income.id} id={`income-${income.id}`}>
             <EntityCard
               name={income.name}
