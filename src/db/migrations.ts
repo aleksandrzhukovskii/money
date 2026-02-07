@@ -38,6 +38,9 @@ const migrations: Record<number, Migration> = {
     db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_budgets_name_active ON budgets(name) WHERE is_active = 1')
     db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_spending_types_name_active ON spending_types(name) WHERE is_active = 1')
   },
+  6: (db) => {
+    db.run("DELETE FROM settings WHERE key IN ('encryption_password', 'github_repo', 'github_token')")
+  },
 }
 
 export function getSchemaVersion(db: Database): number {

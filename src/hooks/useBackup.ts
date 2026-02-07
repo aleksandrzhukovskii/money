@@ -1,12 +1,15 @@
-import { useCallback, useEffect, useRef } from 'react'
-import { useDatabase } from './useDatabase'
-import { useGoogleDrive } from './useGoogleDrive'
+import { useCallback, useRef, useState } from 'react'
+import { useDatabase, getDb, markClean, markDirty } from './useDatabase'
+import { useAuthStore } from '@/stores/auth'
 import { encrypt, decrypt } from '@/lib/crypto'
-import { getSetting, setSetting } from '@/db/queries/settings'
+import { getFile, putFile } from '@/lib/githubSync'
+import { setSetting } from '@/db/queries/settings'
 import { useIncomesStore } from '@/stores/incomes'
 import { useBudgetsStore } from '@/stores/budgets'
 import { useSpendingTypesStore } from '@/stores/spendingTypes'
 import { useTagsStore } from '@/stores/tags'
+
+export type SyncStatus = 'idle' | 'syncing' | 'synced' | 'error'
 
 function downloadBlob(data: Uint8Array, filename: string) {
   const blob = new Blob([data], { type: 'application/octet-stream' })
@@ -22,22 +25,35 @@ function dateStamp(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
+function getPassword(): string | null {
+  return useAuthStore.getState().password
+}
+
+function getGitHubConfig(): { repo: string; token: string } | null {
+  const { repo, token } = useAuthStore.getState()
+  if (!repo || !token) return null
+  return { repo, token }
+}
+
+// Module-level so all useBackup instances share the same SHA
+let _remoteSha: string | null = null
+
 export function useBackup() {
-  const { db, exportRaw, importRaw, persist } = useDatabase()
-  const drive = useGoogleDrive()
+  const { exportRaw, importRaw, persist } = useDatabase()
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle')
   const pushTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  function getPassword(): string | null {
-    if (!db) return null
-    return getSetting(db, 'encryption_password')
-  }
+  const isGitHubConfigured = useAuthStore(
+    (state) => !!(state.repo && state.token),
+  )
 
   function reloadAllStores() {
-    if (!db) return
-    useIncomesStore.getState().load(db)
-    useBudgetsStore.getState().load(db)
-    useSpendingTypesStore.getState().load(db)
-    useTagsStore.getState().load(db)
+    const currentDb = getDb()
+    if (!currentDb) return
+    useIncomesStore.getState().load(currentDb)
+    useBudgetsStore.getState().load(currentDb)
+    useSpendingTypesStore.getState().load(currentDb)
+    useTagsStore.getState().load(currentDb)
   }
 
   // --- Manual export ---
@@ -48,7 +64,7 @@ export function useBackup() {
     if (!bytes || !password) return
     const encrypted = await encrypt(bytes, password)
     downloadBlob(encrypted, `money-tracker-${dateStamp()}.enc`)
-  }, [db, exportRaw])
+  }, [exportRaw])
 
   const exportPlain = useCallback(() => {
     const bytes = exportRaw()
@@ -70,89 +86,132 @@ export function useBackup() {
 
     await importRaw(bytes)
     reloadAllStores()
-  }, [db, importRaw])
+    markDirty()
+  }, [importRaw])
 
-  // --- Google Drive sync ---
+  // --- GitHub sync ---
 
-  const pushToGDrive = useCallback(async () => {
-    if (!drive.isSignedIn) return false
+  const push = useCallback(async (): Promise<boolean> => {
+    const config = getGitHubConfig()
+    const password = getPassword()
     const bytes = exportRaw()
+    if (!config || !password || !bytes) return false
+
+    try {
+      setSyncStatus('syncing')
+      const encrypted = await encrypt(bytes, password)
+      const newSha = await putFile(config.repo, config.token, encrypted, _remoteSha)
+      _remoteSha = newSha
+      const currentDb = getDb()
+      if (currentDb) {
+        setSetting(currentDb, 'last_sync_time', new Date().toISOString())
+        await persist()
+      }
+      markClean()
+      setSyncStatus('synced')
+      return true
+    } catch {
+      setSyncStatus('error')
+      return false
+    }
+  }, [exportRaw, persist])
+
+  const pull = useCallback(async (): Promise<boolean> => {
+    const config = getGitHubConfig()
     const password = getPassword()
-    if (!bytes || !password) return false
-    const encrypted = await encrypt(bytes, password)
-    const ok = await drive.upload(encrypted)
-    if (ok && db) {
-      setSetting(db, 'last_sync_time', new Date().toISOString())
-      await persist()
-    }
-    return ok
-  }, [db, exportRaw, persist, drive])
+    if (!config || !password) return false
 
-  const pullFromGDrive = useCallback(async (): Promise<boolean> => {
-    if (!drive.isSignedIn) return false
+    try {
+      setSyncStatus('syncing')
+      const remote = await getFile(config.repo, config.token)
+      if (!remote) {
+        setSyncStatus('synced')
+        return false
+      }
+
+      // Skip if SHA hasn't changed
+      if (_remoteSha && _remoteSha === remote.sha) {
+        setSyncStatus('synced')
+        return false
+      }
+
+      const bytes = await decrypt(remote.data, password)
+      await importRaw(bytes)
+      _remoteSha = remote.sha
+      reloadAllStores()
+
+      const currentDb = getDb()
+      if (currentDb) {
+        setSetting(currentDb, 'last_sync_time', new Date().toISOString())
+        await persist()
+      }
+      markClean()
+      setSyncStatus('synced')
+      return true
+    } catch {
+      setSyncStatus('error')
+      return false
+    }
+  }, [importRaw, persist])
+
+  // Initial sync — pull existing DB or push empty one for first commit
+  const initialSync = useCallback(async (): Promise<boolean> => {
+    const config = getGitHubConfig()
     const password = getPassword()
-    if (!password) return false
+    if (!config || !password) return false
 
-    const remote = await drive.download()
-    if (!remote) return false
+    try {
+      setSyncStatus('syncing')
+      const remote = await getFile(config.repo, config.token)
 
-    // Check if remote is newer
-    const localSync = db ? getSetting(db, 'last_sync_time') : null
-    if (localSync && new Date(localSync) >= new Date(remote.modifiedTime)) {
-      return false // local is current
+      if (remote) {
+        const bytes = await decrypt(remote.data, password)
+        await importRaw(bytes)
+        _remoteSha = remote.sha
+        reloadAllStores()
+      } else {
+        // First commit — push empty DB
+        const bytes = exportRaw()
+        if (!bytes) return false
+        const encrypted = await encrypt(bytes, password)
+        const sha = await putFile(config.repo, config.token, encrypted, null)
+        _remoteSha = sha
+      }
+
+      const currentDb = getDb()
+      if (currentDb) {
+        setSetting(currentDb, 'last_sync_time', new Date().toISOString())
+        await persist()
+      }
+      markClean()
+      setSyncStatus('synced')
+      return true
+    } catch {
+      setSyncStatus('error')
+      return false
     }
+  }, [exportRaw, importRaw, persist])
 
-    const bytes = await decrypt(remote.data, password)
-    await importRaw(bytes)
-    reloadAllStores()
-
-    if (db) {
-      setSetting(db, 'last_sync_time', new Date().toISOString())
-      await persist()
-    }
-    return true
-  }, [db, importRaw, persist, drive])
-
-  // Auto-push after writes (debounced 2s)
+  // Auto-push after writes (debounced 60s)
   const schedulePush = useCallback(() => {
-    if (!drive.isSignedIn) return
+    if (!getGitHubConfig()) return
     if (pushTimer.current) clearTimeout(pushTimer.current)
     pushTimer.current = setTimeout(() => {
-      pushToGDrive()
-    }, 2000)
-  }, [drive.isSignedIn, pushToGDrive])
-
-  // Auto-pull on focus regain
-  useEffect(() => {
-    if (!drive.isSignedIn) return
-
-    function handleVisibility() {
-      if (document.visibilityState === 'visible') {
-        pullFromGDrive()
-      }
-    }
-
-    // Pull on mount (app open)
-    pullFromGDrive()
-
-    document.addEventListener('visibilitychange', handleVisibility)
-    return () => document.removeEventListener('visibilitychange', handleVisibility)
-  }, [drive.isSignedIn, pullFromGDrive])
+      push()
+    }, 60_000)
+  }, [push])
 
   return {
     // Manual
     exportEncrypted,
     exportPlain,
     importFile,
-    // Drive sync
-    pushToGDrive,
-    pullFromGDrive,
+    // GitHub sync
+    push,
+    pull,
+    initialSync,
     schedulePush,
-    // Drive state (forwarded)
-    isGDriveSignedIn: drive.isSignedIn,
-    isGDriveAvailable: drive.isAvailable,
-    syncStatus: drive.syncStatus,
-    signInToGDrive: drive.signIn,
-    signOutOfGDrive: drive.signOut,
+    syncStatus,
+    isGitHubConfigured,
   }
 }

@@ -1,10 +1,13 @@
 import { Outlet } from 'react-router-dom'
 import { BottomNav } from './BottomNav'
 import { Sidebar } from './Sidebar'
+import { PWAUpdatePrompt } from './PWAUpdatePrompt'
 
 export function AppShell() {
   return (
     <div className="flex h-dvh w-full">
+      <PWAUpdatePrompt />
+
       {/* Desktop sidebar */}
       <Sidebar className="hidden md:flex" />
 

@@ -33,6 +33,28 @@ async function saveToIndexedDB(data: Uint8Array): Promise<void> {
 let dbInstance: Database | null = null
 let initPromise: Promise<Database> | null = null
 
+// Dirty flag — tracks whether local changes exist that haven't been synced
+let _dirty = false
+export function markDirty() { _dirty = true }
+export function markClean() { _dirty = false }
+export function isDirty() { return _dirty }
+
+export function deleteLocalDatabase() {
+  indexedDB.deleteDatabase(IDB_NAME)
+}
+
+export function getDb(): Database | null {
+  return dbInstance
+}
+
+export function resetDatabase() {
+  if (dbInstance) {
+    dbInstance.close()
+    dbInstance = null
+  }
+  initPromise = null
+}
+
 async function initDatabase(): Promise<Database> {
   const SQL = await initSqlJs({
     locateFile: (file: string) => `${import.meta.env.BASE_URL}${file}`,
@@ -103,8 +125,10 @@ export function useDatabase() {
     if (persistTimer.current) {
       clearTimeout(persistTimer.current)
     }
-    persistTimer.current = setTimeout(() => {
-      persist()
+    persistTimer.current = setTimeout(async () => {
+      _dirty = true
+      await persist()
+      window.dispatchEvent(new CustomEvent('db-persisted'))
     }, 500)
   }, [persist])
 

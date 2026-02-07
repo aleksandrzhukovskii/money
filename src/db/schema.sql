@@ -2,7 +2,7 @@
 CREATE TABLE IF NOT EXISTS schema_version (
   version INTEGER NOT NULL DEFAULT 0
 );
-INSERT INTO schema_version (version) VALUES (5);
+INSERT INTO schema_version (version) VALUES (6);
 
 -- Cached currency list from exchange API
 CREATE TABLE IF NOT EXISTS currencies (

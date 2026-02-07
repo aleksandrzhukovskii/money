@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import { useDatabase } from '@/hooks/useDatabase'
+import { useDatabase, deleteLocalDatabase, resetDatabase } from '@/hooks/useDatabase'
 import { useBackup } from '@/hooks/useBackup'
+import { useAuthStore } from '@/stores/auth'
+import { clearCredentials } from '@/components/AuthScreen'
 import { getSetting, setSetting } from '@/db/queries/settings'
 import { CurrencySelect } from '@/components/CurrencySelect'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import {
@@ -24,44 +25,38 @@ interface SettingsDialogProps {
 export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const { db, persistDebounced } = useDatabase()
   const backup = useBackup()
+  const { repo } = useAuthStore()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [displayCurrency, setDisplayCurrency] = useState('')
-  const [password, setPassword] = useState('')
-  const [hasPassword, setHasPassword] = useState(false)
 
   useEffect(() => {
     if (open && db) {
-      const saved = getSetting(db, 'display_currency')
-      setDisplayCurrency(saved ?? '')
-      const pwd = getSetting(db, 'encryption_password')
-      setHasPassword(!!pwd)
-      setPassword(pwd ?? '')
+      setDisplayCurrency(getSetting(db, 'display_currency') ?? '')
     }
   }, [open, db])
 
   function handleSave() {
-    if (!db) return
-    if (displayCurrency) {
-      setSetting(db, 'display_currency', displayCurrency)
-    }
-    if (password.trim()) {
-      setSetting(db, 'encryption_password', password.trim())
-    }
+    if (!db || !displayCurrency) return
+    setSetting(db, 'display_currency', displayCurrency)
     persistDebounced()
     onOpenChange(false)
   }
 
-  async function handleGDriveSignIn() {
-    const token = await backup.signInToGDrive()
-    if (token) {
-      toast.success('Signed in to Google Drive')
-    }
+  async function handleSyncNow() {
+    const ok = await backup.push()
+    if (ok) toast.success('Synced to GitHub')
+    else toast.error('Sync failed')
   }
 
-  function handleGDriveSignOut() {
-    backup.signOutOfGDrive()
-    toast.success('Signed out of Google Drive')
+  async function handlePull() {
+    const pulled = await backup.pull()
+    if (pulled) {
+      toast.success('Pulled from GitHub')
+      onOpenChange(false)
+    } else {
+      toast('Already up to date')
+    }
   }
 
   async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
@@ -74,31 +69,16 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     } catch (err) {
       toast.error(`Import failed: ${err instanceof Error ? err.message : String(err)}`)
     }
-    // Reset input
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  async function handlePush() {
-    const ok = await backup.pushToGDrive()
-    if (ok) toast.success('Pushed to Google Drive')
-    else toast.error('Push failed')
+  function handleLogout() {
+    useAuthStore.getState().clearAuth()
+    clearCredentials()
+    deleteLocalDatabase()
+    resetDatabase()
+    onOpenChange(false)
   }
-
-  async function handlePull() {
-    const pulled = await backup.pullFromGDrive()
-    if (pulled) {
-      toast.success('Pulled from Google Drive')
-      onOpenChange(false)
-    } else {
-      toast('Already up to date')
-    }
-  }
-
-  const syncLabel =
-    backup.syncStatus === 'syncing' ? 'Syncing...'
-    : backup.syncStatus === 'synced' ? 'Synced'
-    : backup.syncStatus === 'error' ? 'Sync error'
-    : ''
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -118,60 +98,20 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
           <Separator />
 
-          {/* Encryption */}
+          {/* Sync */}
           <div>
-            <Label htmlFor="enc-password">Encryption Password</Label>
+            <Label>GitHub Sync</Label>
             <p className="text-xs text-muted-foreground mb-1">
-              Used for encrypted exports and Google Drive sync.
+              Connected to {repo}
             </p>
-            <Input
-              id="enc-password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder={hasPassword ? '••••••••' : 'Set a password'}
-            />
-          </div>
-
-          <Separator />
-
-          {/* Google Drive */}
-          <div>
-            <Label>Google Drive Sync</Label>
-            {!backup.isGDriveAvailable ? (
-              <p className="text-xs text-muted-foreground mt-1">
-                Google Drive sync is not configured. Set VITE_GOOGLE_CLIENT_ID to enable.
-              </p>
-            ) : !backup.isGDriveSignedIn ? (
-              <Button variant="outline" className="mt-2 w-full" onClick={handleGDriveSignIn}>
-                Sign in with Google
+            <div className="flex gap-2 mt-2">
+              <Button variant="outline" size="sm" onClick={handleSyncNow}>
+                Sync Now
               </Button>
-            ) : (
-              <div className="space-y-2 mt-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-green-600">Connected</span>
-                  {syncLabel && (
-                    <span className="text-xs text-muted-foreground">{syncLabel}</span>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={handlePull} className="flex-1">
-                    Pull
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={handlePush} className="flex-1">
-                    Push
-                  </Button>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleGDriveSignOut}
-                  className="w-full text-muted-foreground"
-                >
-                  Sign out
-                </Button>
-              </div>
-            )}
+              <Button variant="outline" size="sm" onClick={handlePull}>
+                Pull
+              </Button>
+            </div>
           </div>
 
           <Separator />
@@ -180,12 +120,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
           <div>
             <Label>Manual Backup</Label>
             <div className="flex flex-wrap gap-2 mt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={backup.exportEncrypted}
-                disabled={!hasPassword && !password.trim()}
-              >
+              <Button variant="outline" size="sm" onClick={backup.exportEncrypted}>
                 Export Encrypted
               </Button>
               <Button variant="outline" size="sm" onClick={backup.exportPlain}>
@@ -202,11 +137,15 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               className="hidden"
               onChange={handleImport}
             />
-            {!hasPassword && !password.trim() && (
-              <p className="text-xs text-muted-foreground mt-1">
-                Set an encryption password above to enable encrypted export.
-              </p>
-            )}
+          </div>
+
+          <Separator />
+
+          {/* Logout */}
+          <div>
+            <Button variant="destructive" size="sm" onClick={handleLogout} className="w-full">
+              Logout
+            </Button>
           </div>
         </div>
         <DialogFooter>
