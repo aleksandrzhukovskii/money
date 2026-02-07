@@ -23,12 +23,10 @@ export function SpendingTypesList({ onAddClick, onEditClick, activeSource, filte
 
   return (
     <section>
-      <div className="flex items-center justify-between mb-2">
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
-          Spendings{items.length > 0 && ` (${filtered.length}/${items.length})`}
-        </h2>
-        <FilterInput value={filter} onChange={onFilterChange} />
-      </div>
+      <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">
+        Spendings{items.length > 0 && ` (${filtered.length}/${items.length})`}
+      </h2>
+      <FilterInput value={filter} onChange={onFilterChange} />
       <div className="flex flex-wrap gap-3">
         {filtered.map((item) => (
           <DroppableTarget

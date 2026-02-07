@@ -12,7 +12,7 @@ export function FilterInput({ value, onChange }: FilterInputProps) {
       placeholder="Filter (| or , for OR)"
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="h-7 w-36 sm:w-56 text-xs sm:text-sm"
+      className="mb-3 h-8 w-full text-sm"
     />
   )
 }

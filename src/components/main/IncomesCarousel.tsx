@@ -26,12 +26,10 @@ export function IncomesCarousel({ onAddClick, onEditClick, filter, onFilterChang
 
   return (
     <section>
-      <div className="flex items-center justify-between mb-2">
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
-          Incomes{items.length > 0 && ` (${filtered.length}/${items.length})`}
-        </h2>
-        <FilterInput value={filter} onChange={onFilterChange} />
-      </div>
+      <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">
+        Incomes{items.length > 0 && ` (${filtered.length}/${items.length})`}
+      </h2>
+      <FilterInput value={filter} onChange={onFilterChange} />
       <div className="flex flex-wrap gap-3">
         {filtered.map((income) => (
           <DraggableCard key={income.id} id={`income-${income.id}`}>

@@ -29,12 +29,10 @@ export function BudgetsCarousel({ onAddClick, onEditClick, activeSource, filter,
 
   return (
     <section>
-      <div className="flex items-center justify-between mb-2">
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
-          Budgets{itemsWithBalances.length > 0 && ` (${filtered.length}/${itemsWithBalances.length})`}
-        </h2>
-        <FilterInput value={filter} onChange={onFilterChange} />
-      </div>
+      <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">
+        Budgets{itemsWithBalances.length > 0 && ` (${filtered.length}/${itemsWithBalances.length})`}
+      </h2>
+      <FilterInput value={filter} onChange={onFilterChange} />
       <div className="flex flex-wrap gap-3">
         {filtered.map((budget) => (
           <DroppableTarget
