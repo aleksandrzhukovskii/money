@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react'
 import {
   DndContext,
   DragOverlay,
-  MouseSensor,
-  TouchSensor,
+  PointerSensor,
   useSensor,
   useSensors,
   type DragStartEvent,
@@ -24,8 +23,7 @@ import { AddSpendingTypeDialog } from '@/components/main/AddSpendingTypeDialog'
 import { SettingsDialog } from '@/components/main/SettingsDialog'
 import { TransactionDialog } from '@/components/main/TransactionDialog'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Settings, Search } from 'lucide-react'
+import { Settings } from 'lucide-react'
 import type { Income, Budget, BudgetWithBalance, SpendingType, TransactionType } from '@/types/database'
 
 interface TransactionDialogState {
@@ -59,18 +57,17 @@ export function MainPage() {
   const [editingBudget, setEditingBudget] = useState<Budget | null>(null)
   const [editingSpendingType, setEditingSpendingType] = useState<SpendingType | null>(null)
 
-  // Filter
-  const [filter, setFilter] = useState('')
+  // Filters (per section)
+  const [incomeFilter, setIncomeFilter] = useState('')
+  const [budgetFilter, setBudgetFilter] = useState('')
+  const [spendingFilter, setSpendingFilter] = useState('')
 
   // Drag state
   const [activeId, setActiveId] = useState<string | null>(null)
 
   const sensors = useSensors(
-    useSensor(MouseSensor, {
+    useSensor(PointerSensor, {
       activationConstraint: { distance: 8 },
-    }),
-    useSensor(TouchSensor, {
-      activationConstraint: { delay: 300, tolerance: 5 },
     }),
   )
 
@@ -174,18 +171,6 @@ export function MainPage() {
         </Button>
       </header>
 
-      <div className="px-4 pt-3">
-        <div className="relative">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            placeholder="Filter... (use | or , for multiple)"
-            className="pl-9"
-          />
-        </div>
-      </div>
-
       <DndContext
         sensors={sensors}
         onDragStart={handleDragStart}
@@ -196,21 +181,24 @@ export function MainPage() {
           <IncomesCarousel
             onAddClick={() => { setEditingIncome(null); setIncomeDialogOpen(true) }}
             onEditClick={(income) => { setEditingIncome(income); setIncomeDialogOpen(true) }}
-            filter={filter}
+            filter={incomeFilter}
+            onFilterChange={setIncomeFilter}
           />
 
           <BudgetsCarousel
             onAddClick={() => { setEditingBudget(null); setBudgetDialogOpen(true) }}
             onEditClick={(budget: BudgetWithBalance) => { setEditingBudget(budget); setBudgetDialogOpen(true) }}
             activeSource={activeId}
-            filter={filter}
+            filter={budgetFilter}
+            onFilterChange={setBudgetFilter}
           />
 
           <SpendingTypesList
             onAddClick={() => { setEditingSpendingType(null); setSpendingDialogOpen(true) }}
             onEditClick={(st) => { setEditingSpendingType(st); setSpendingDialogOpen(true) }}
             activeSource={activeId}
-            filter={filter}
+            filter={spendingFilter}
+            onFilterChange={setSpendingFilter}
           />
         </div>
 

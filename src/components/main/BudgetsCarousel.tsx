@@ -3,6 +3,7 @@ import { DraggableCard } from './DraggableCard'
 import { DroppableTarget } from './DroppableTarget'
 import { EntityCard } from './EntityCard'
 import { AddCard } from './AddCard'
+import { FilterInput } from './FilterInput'
 import { matchesFilter } from '@/lib/filter'
 import type { BudgetWithBalance } from '@/types/database'
 
@@ -11,27 +12,31 @@ interface BudgetsCarouselProps {
   onEditClick: (budget: BudgetWithBalance) => void
   activeSource: string | null
   filter: string
+  onFilterChange: (value: string) => void
 }
 
-export function BudgetsCarousel({ onAddClick, onEditClick, activeSource, filter }: BudgetsCarouselProps) {
+export function BudgetsCarousel({ onAddClick, onEditClick, activeSource, filter, onFilterChange }: BudgetsCarouselProps) {
   const { itemsWithBalances } = useBudgetsStore()
 
   function isValidTarget(budgetId: number): boolean {
     if (!activeSource) return false
-    // Income dragged onto any budget → valid (earning)
     if (activeSource.startsWith('income-')) return true
-    // Budget dragged onto a different budget → valid (transfer)
     if (activeSource.startsWith('budget-') && activeSource !== `budget-${budgetId}`) return true
     return false
   }
 
+  const filtered = itemsWithBalances.filter(b => matchesFilter(b.name, filter))
+
   return (
     <section>
-      <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">
-        Budgets{itemsWithBalances.length > 0 && ` (${itemsWithBalances.length})`}
-      </h2>
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+          Budgets{itemsWithBalances.length > 0 && ` (${filtered.length}/${itemsWithBalances.length})`}
+        </h2>
+        <FilterInput value={filter} onChange={onFilterChange} />
+      </div>
       <div className="flex flex-wrap gap-3">
-        {itemsWithBalances.filter(b => matchesFilter(b.name, filter)).map((budget) => (
+        {filtered.map((budget) => (
           <DroppableTarget
             key={budget.id}
             id={`budget-${budget.id}`}
