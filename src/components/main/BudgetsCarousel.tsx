@@ -28,7 +28,7 @@ export function BudgetsCarousel({ onAddClick, onEditClick, activeSource }: Budge
       <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">
         Budgets{itemsWithBalances.length > 0 && ` (${itemsWithBalances.length})`}
       </h2>
-      <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 scrollbar-hide">
+      <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide" style={{ touchAction: 'pan-y' }}>
         {itemsWithBalances.map((budget) => (
           <DroppableTarget
             key={budget.id}

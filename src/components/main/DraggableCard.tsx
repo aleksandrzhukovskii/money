@@ -14,6 +14,7 @@ export function DraggableCard({ id, children }: DraggableCardProps) {
       ref={setNodeRef}
       {...attributes}
       {...listeners}
+      className="shrink-0"
       style={{ touchAction: 'none' }}
     >
       {typeof children.type === 'string'

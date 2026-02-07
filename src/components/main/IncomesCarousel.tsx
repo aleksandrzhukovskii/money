@@ -23,7 +23,7 @@ export function IncomesCarousel({ onAddClick, onEditClick }: IncomesCarouselProp
       <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">
         Incomes{items.length > 0 && ` (${items.length})`}
       </h2>
-      <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 scrollbar-hide">
+      <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide" style={{ touchAction: 'pan-y' }}>
         {items.map((income) => (
           <DraggableCard key={income.id} id={`income-${income.id}`}>
             <EntityCard

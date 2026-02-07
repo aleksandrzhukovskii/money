@@ -52,7 +52,7 @@ export function EntityCard({ name, currency, balance, earned, expectedAmount, sp
 
   return (
     <Card
-      className={`w-40 shrink-0 snap-start cursor-pointer select-none transition-opacity ${
+      className={`w-40 shrink-0 cursor-pointer select-none transition-opacity ${
         isDragging ? 'opacity-40' : ''
       }`}
       style={bgStyle}

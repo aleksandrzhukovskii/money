@@ -9,7 +9,7 @@ interface AddCardProps {
 export function AddCard({ label, onClick }: AddCardProps) {
   return (
     <Card
-      className="w-40 shrink-0 snap-start cursor-pointer border-2 border-dashed border-gray-300 hover:border-emerald-500 hover:bg-emerald-50 transition-colors"
+      className="w-40 shrink-0 cursor-pointer border-2 border-dashed border-gray-300 hover:border-emerald-500 hover:bg-emerald-50 transition-colors"
       onClick={onClick}
     >
       <div className="flex flex-col items-center justify-center p-3 h-full min-h-[80px]">
