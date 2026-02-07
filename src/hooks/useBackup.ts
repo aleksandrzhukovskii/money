@@ -12,7 +12,7 @@ import { useTagsStore } from '@/stores/tags'
 export type SyncStatus = 'idle' | 'syncing' | 'synced' | 'error'
 
 function downloadBlob(data: Uint8Array, filename: string) {
-  const blob = new Blob([data], { type: 'application/octet-stream' })
+  const blob = new Blob([data as BlobPart], { type: 'application/octet-stream' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
@@ -76,7 +76,7 @@ export function useBackup() {
 
   const importFile = useCallback(async (file: File) => {
     const buffer = await file.arrayBuffer()
-    let bytes = new Uint8Array(buffer)
+    let bytes: Uint8Array = new Uint8Array(buffer)
 
     if (file.name.endsWith('.enc')) {
       const password = getPassword()

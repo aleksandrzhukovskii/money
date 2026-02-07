@@ -1,11 +1,5 @@
 import type { Database } from 'sql.js'
-import type { Transaction, TransactionWithDetails, TransactionType } from '@/types/database'
-
-function rowToTransaction(columns: string[], values: (string | number | null)[]): Transaction {
-  const obj: Record<string, unknown> = {}
-  columns.forEach((col, i) => { obj[col] = values[i] })
-  return obj as unknown as Transaction
-}
+import type { TransactionWithDetails, TransactionType } from '@/types/database'
 
 export interface TransactionFilters {
   type?: TransactionType
@@ -80,8 +74,6 @@ export function getTransactions(db: Database, filters: TransactionFilters = {}):
 }
 
 export function getTransactionById(db: Database, id: number): TransactionWithDetails | null {
-  const results = getTransactions(db, { limit: 1 })
-  // Re-query with specific id
   const sql = `
     SELECT t.*,
       COALESCE(i.name, sb.name) as source_name,
@@ -109,7 +101,6 @@ export function getTransactionById(db: Database, id: number): TransactionWithDet
     ? tagResult[0]!.values.map((r) => r[0] as string)
     : []
 
-  void results // suppress unused
   return tx
 }
 

@@ -53,7 +53,7 @@ function getDateBounds(preset: DateRangePreset): { dateFrom: string; dateTo: str
   }
 }
 
-function getPreviousPeriodBounds(preset: DateRangePreset, dateFrom: string, dateTo: string): { dateFrom: string; dateTo: string } {
+function getPreviousPeriodBounds(preset: DateRangePreset): { dateFrom: string; dateTo: string } {
   if (preset === 'custom' || preset === 'all-time') {
     return { dateFrom: '1900-01-01', dateTo: '1999-12-31' }
   }
@@ -112,7 +112,7 @@ export function useStatistics() {
       dateTo = bounds.dateTo
     }
 
-    const prev = getPreviousPeriodBounds(preset, dateFrom, dateTo)
+    const prev = getPreviousPeriodBounds(preset)
 
     return {
       spendingByCategory: getSpendingByCategory(db, dateFrom, dateTo),
