@@ -10,9 +10,11 @@ import {
   Dialog,
   DialogContent,
   DialogFooter,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { parseNumber } from '@/lib/parseNumber'
 import type { Income } from '@/types/database'
 
 interface AddIncomeDialogProps {
@@ -43,7 +45,7 @@ export function AddIncomeDialog({ open, onOpenChange, editing }: AddIncomeDialog
 
   function handleSave() {
     if (!db || !name.trim() || !currency || nameTaken) return
-    const expected = parseFloat(expectedAmount) || 0
+    const expected = parseNumber(expectedAmount) || 0
     if (editing) {
       update(db, editing.id, { name: name.trim(), currency, expected_amount: expected })
     } else {
@@ -67,6 +69,7 @@ export function AddIncomeDialog({ open, onOpenChange, editing }: AddIncomeDialog
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{editing ? 'Edit Income' : 'Add Income'}</DialogTitle>
+            <DialogDescription className="sr-only">Income form</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
@@ -76,7 +79,6 @@ export function AddIncomeDialog({ open, onOpenChange, editing }: AddIncomeDialog
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Salary, Freelance"
-                autoFocus
               />
               {nameTaken && <p className="text-xs text-red-500 mt-1">Name already exists</p>}
             </div>

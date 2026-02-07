@@ -6,6 +6,7 @@ import { useBudgetsStore } from '@/stores/budgets'
 import { useSpendingTypesStore } from '@/stores/spendingTypes'
 import { useTagsStore } from '@/stores/tags'
 import { insertTransaction, updateTransaction } from '@/db/queries/transactions'
+import { parseNumber } from '@/lib/parseNumber'
 import { TagPicker } from './TagPicker'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -102,7 +103,7 @@ export function TransactionDialog({
   // Auto-calculate converted amount when locked
   useEffect(() => {
     if (rateLocked && rate && amount) {
-      const val = parseFloat(amount)
+      const val = parseNumber(amount)
       if (!isNaN(val)) {
         setConvertedAmount((val * rate).toFixed(2))
       }
@@ -110,8 +111,8 @@ export function TransactionDialog({
   }, [amount, rate, rateLocked])
 
   function effectiveRate(): number | null {
-    const a = parseFloat(amount)
-    const c = parseFloat(convertedAmount)
+    const a = parseNumber(amount)
+    const c = parseNumber(convertedAmount)
     if (!isNaN(a) && !isNaN(c) && a > 0) {
       return c / a
     }
@@ -120,12 +121,12 @@ export function TransactionDialog({
 
   function handleSave() {
     if (!db) return
-    const amountNum = parseFloat(amount)
+    const amountNum = parseNumber(amount)
     if (isNaN(amountNum) || amountNum <= 0) return
 
     const crossFields = isCrossCurrency
       ? {
-          converted_amount: parseFloat(convertedAmount) || null,
+          converted_amount: parseNumber(convertedAmount) || null,
           destination_currency: effDestCurrency,
           exchange_rate: effectiveRate(),
         }
@@ -184,8 +185,8 @@ export function TransactionDialog({
     ? `Edit ${effType.charAt(0).toUpperCase() + effType.slice(1)}`
     : `New ${effType.charAt(0).toUpperCase() + effType.slice(1)}`
 
-  const amountValid = !isNaN(parseFloat(amount)) && parseFloat(amount) > 0
-  const crossValid = !isCrossCurrency || (parseFloat(convertedAmount) > 0)
+  const amountValid = !isNaN(parseNumber(amount)) && parseNumber(amount) > 0
+  const crossValid = !isCrossCurrency || (parseNumber(convertedAmount) > 0)
   const canSave = amountValid && crossValid
 
   return (
@@ -208,7 +209,6 @@ export function TransactionDialog({
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0.00"
-              autoFocus
             />
           </div>
 

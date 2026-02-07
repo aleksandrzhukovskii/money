@@ -63,7 +63,7 @@ export function getMonthlySpending(db: Database): Record<number, number> {
   const now = new Date()
   const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
   const result = db.exec(
-    `SELECT destination_spending_type_id, SUM(amount) as total
+    `SELECT destination_spending_type_id, SUM(COALESCE(converted_amount, amount)) as total
      FROM transactions
      WHERE type = 'spending' AND destination_spending_type_id IS NOT NULL AND date >= ?
      GROUP BY destination_spending_type_id`,

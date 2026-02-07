@@ -121,6 +121,7 @@ export function AuthScreen() {
                 <Input
                   id="password"
                   type="password"
+                  autoComplete="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter password"
@@ -160,6 +161,7 @@ export function AuthScreen() {
               <Input
                 id="setup-password"
                 type="password"
+                autoComplete="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Choose a password"
@@ -171,6 +173,7 @@ export function AuthScreen() {
               <Input
                 id="confirm-password"
                 type="password"
+                autoComplete="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="Confirm password"
@@ -190,6 +193,7 @@ export function AuthScreen() {
               <Input
                 id="setup-token"
                 type="password"
+                autoComplete="off"
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
                 placeholder="ghp_..."

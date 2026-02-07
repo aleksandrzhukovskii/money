@@ -11,6 +11,7 @@ import {
   Dialog,
   DialogContent,
   DialogFooter,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
@@ -66,6 +67,7 @@ export function AddSpendingTypeDialog({ open, onOpenChange, editing }: AddSpendi
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{editing ? 'Edit Spending' : 'Add Spending'}</DialogTitle>
+            <DialogDescription className="sr-only">Spending type form</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
@@ -75,7 +77,6 @@ export function AddSpendingTypeDialog({ open, onOpenChange, editing }: AddSpendi
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Food, Rent, Transport"
-                autoFocus
               />
               {nameTaken && <p className="text-xs text-red-500 mt-1">Name already exists</p>}
             </div>

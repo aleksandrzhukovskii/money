@@ -11,9 +11,11 @@ import {
   Dialog,
   DialogContent,
   DialogFooter,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { parseNumber } from '@/lib/parseNumber'
 import type { Budget } from '@/types/database'
 
 interface AddBudgetDialogProps {
@@ -45,7 +47,7 @@ export function AddBudgetDialog({ open, onOpenChange, editing }: AddBudgetDialog
 
   function handleSave() {
     if (!db || !name.trim() || !currency || nameTaken) return
-    const balance = parseFloat(initialBalance) || 0
+    const balance = parseNumber(initialBalance) || 0
     if (editing) {
       update(db, editing.id, { name: name.trim(), currency, initial_balance: balance })
     } else {
@@ -69,6 +71,7 @@ export function AddBudgetDialog({ open, onOpenChange, editing }: AddBudgetDialog
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{editing ? 'Edit Budget' : 'Add Budget'}</DialogTitle>
+            <DialogDescription className="sr-only">Budget form</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
@@ -78,7 +81,6 @@ export function AddBudgetDialog({ open, onOpenChange, editing }: AddBudgetDialog
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Main Account, Cash, Savings"
-                autoFocus
               />
               {nameTaken && <p className="text-xs text-red-500 mt-1">Name already exists</p>}
             </div>
