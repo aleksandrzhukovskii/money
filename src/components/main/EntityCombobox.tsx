@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { formatCents } from '@/lib/format'
+import { useAppStore } from '@/stores/app'
+import { formatCents, formatCentsShort } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import {
   Command,
@@ -43,6 +44,8 @@ interface EntityComboboxProps {
 
 export function EntityCombobox({ label, items, value, onChange, groups, placeholder = 'Select...' }: EntityComboboxProps) {
   const [open, setOpen] = useState(false)
+  const compact = useAppStore(s => s.compactAmounts)
+  const fmt = compact ? formatCentsShort : formatCents
 
   const selected = value ? items.find(i => i.type === value.type && i.id === value.id) : null
 
@@ -92,7 +95,7 @@ export function EntityCombobox({ label, items, value, onChange, groups, placehol
                           <Check className={`mr-2 h-4 w-4 shrink-0 ${isSelected ? 'opacity-100' : 'opacity-0'}`} />
                           <span className="truncate flex-1">{item.name}</span>
                           <span className={`ml-2 text-xs shrink-0 ${amountColor}`}>
-                            {formatCents(item.displayAmount, item.currency)}
+                            {fmt(item.displayAmount, item.currency)}
                           </span>
                         </CommandItem>
                       )

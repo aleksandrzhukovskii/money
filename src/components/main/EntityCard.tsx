@@ -1,6 +1,7 @@
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { formatCents, formatCentsCompact } from '@/lib/format'
+import { useAppStore } from '@/stores/app'
+import { formatCents, formatCentsCompact, formatCentsShort } from '@/lib/format'
 
 interface EntityCardProps {
   name: string
@@ -26,6 +27,10 @@ function progressColor(ratio: number): string {
 }
 
 export function EntityCard({ name, currency, balance, earned, expectedAmount, spent, progress, isDragging, onClick }: EntityCardProps) {
+  const compact = useAppStore(s => s.compactAmounts)
+  const fmt = compact ? formatCentsShort : formatCents
+  const fmtSmall = compact ? formatCentsShort : formatCentsCompact
+
   const bgStyle = progress !== undefined
     ? { backgroundColor: progressColor(progress) }
     : undefined
@@ -43,17 +48,17 @@ export function EntityCard({ name, currency, balance, earned, expectedAmount, sp
         <Badge variant="secondary" className="mt-1">{currency}</Badge>
         {balance !== undefined && (
           <p className={`text-sm font-medium mt-1 ${balance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-            {formatCents(balance, currency)}
+            {fmt(balance, currency)}
           </p>
         )}
         {expectedAmount !== undefined && expectedAmount > 0 && (
           <p className="text-xs mt-1 text-gray-600">
-            {formatCentsCompact(earned ?? 0, currency)} / {formatCentsCompact(expectedAmount, currency)}
+            {fmtSmall(earned ?? 0, currency)} / {fmtSmall(expectedAmount, currency)}
           </p>
         )}
         {spent !== undefined && spent > 0 && (
           <p className="text-xs font-medium mt-1 text-red-600">
-            {formatCentsCompact(spent, currency)}
+            {fmtSmall(spent, currency)}
           </p>
         )}
       </CardContent>

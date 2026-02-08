@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useDatabase, deleteLocalDatabase, resetDatabase } from '@/hooks/useDatabase'
 import { useBackup } from '@/hooks/useBackup'
+import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
 import { clearCredentials } from '@/components/AuthScreen'
 import { getSetting, setSetting } from '@/db/queries/settings'
@@ -30,6 +31,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [displayCurrency, setDisplayCurrency] = useState('')
+  const compactAmounts = useAppStore(s => s.compactAmounts)
 
   useEffect(() => {
     if (open && db) {
@@ -96,6 +98,22 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               Statistics will convert all amounts to this currency.
             </p>
             <CurrencySelect value={displayCurrency} onChange={setDisplayCurrency} />
+          </div>
+
+          {/* Compact Amounts */}
+          <div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={compactAmounts}
+                onChange={(e) => useAppStore.getState().setCompactAmounts(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 accent-emerald-600"
+              />
+              <span className="text-sm font-medium">Compact Amounts</span>
+            </label>
+            <p className="text-xs text-muted-foreground mt-1">
+              Shorten large numbers (e.g. 23k, 1.5m) on cards and in history.
+            </p>
           </div>
 
           <Separator />

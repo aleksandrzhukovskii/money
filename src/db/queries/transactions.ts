@@ -197,11 +197,13 @@ export function deleteTransaction(db: Database, id: number): void {
 
 export function getTransactionsForEntity(
   db: Database,
-  entityType: 'budget' | 'spending_type',
+  entityType: 'budget' | 'spending_type' | 'income',
   entityId: number,
 ): TransactionWithDetails[] {
   const condition = entityType === 'budget'
     ? '(t.source_budget_id = ? OR t.destination_budget_id = ?)'
+    : entityType === 'income'
+    ? 't.source_income_id = ?'
     : 't.destination_spending_type_id = ?'
   const params = entityType === 'budget' ? [entityId, entityId] : [entityId]
 

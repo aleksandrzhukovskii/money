@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useDatabase } from '@/hooks/useDatabase'
+import { useAppStore } from '@/stores/app'
 import { useIncomesStore } from '@/stores/incomes'
 import { useBudgetsStore } from '@/stores/budgets'
 import { useSpendingTypesStore } from '@/stores/spendingTypes'
@@ -16,12 +17,13 @@ import {
 } from '@/components/ui/dialog'
 import { Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { formatCentsShort } from '@/lib/format'
 import type { TransactionWithDetails } from '@/types/database'
 
 interface TransactionHistoryDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  entityType: 'budget' | 'spending_type'
+  entityType: 'budget' | 'spending_type' | 'income'
   entityId: number
   entityName: string
   currency: string
@@ -47,6 +49,8 @@ export function TransactionHistoryDialog({
   currency,
 }: TransactionHistoryDialogProps) {
   const { db, persistDebounced } = useDatabase()
+  const compact = useAppStore(s => s.compactAmounts)
+  const fmt = compact ? formatCentsShort : formatAmount
   const { load: loadIncomes } = useIncomesStore()
   const { load: loadBudgets } = useBudgetsStore()
   const { load: loadSpendingTypes } = useSpendingTypesStore()
@@ -68,18 +72,48 @@ export function TransactionHistoryDialog({
   }, [open, db, entityType, entityId])
 
   function isInflow(tx: TransactionWithDetails): boolean {
+    if (entityType === 'income') return true
     if (entityType === 'spending_type') return false
     return tx.destination_budget_id === entityId
   }
 
-  function getDisplayCents(tx: TransactionWithDetails): number {
-    if (entityType === 'budget') {
-      if (tx.destination_budget_id === entityId) {
-        return tx.converted_amount ?? tx.amount
+  function getAmountInfo(tx: TransactionWithDetails): {
+    primaryCents: number
+    primaryCurrency: string
+    secondaryCents?: number
+    secondaryCurrency?: string
+  } {
+    const isCross = tx.converted_amount != null && tx.destination_currency != null
+
+    if (entityType === 'income') {
+      return {
+        primaryCents: tx.amount,
+        primaryCurrency: currency,
+        ...(isCross ? { secondaryCents: tx.converted_amount!, secondaryCurrency: tx.destination_currency! } : {}),
       }
-      return tx.amount
     }
-    return tx.converted_amount ?? tx.amount
+
+    if (entityType === 'spending_type') {
+      return {
+        primaryCents: tx.converted_amount ?? tx.amount,
+        primaryCurrency: currency,
+        ...(isCross ? { secondaryCents: tx.amount, secondaryCurrency: tx.source_currency } : {}),
+      }
+    }
+
+    // Budget: can be source or destination
+    if (tx.destination_budget_id === entityId) {
+      return {
+        primaryCents: tx.converted_amount ?? tx.amount,
+        primaryCurrency: currency,
+        ...(isCross ? { secondaryCents: tx.amount, secondaryCurrency: tx.source_currency } : {}),
+      }
+    }
+    return {
+      primaryCents: tx.amount,
+      primaryCurrency: currency,
+      ...(isCross ? { secondaryCents: tx.converted_amount!, secondaryCurrency: tx.destination_currency! } : {}),
+    }
   }
 
   function handleDelete() {
@@ -117,7 +151,7 @@ export function TransactionHistoryDialog({
               <div className="space-y-1">
                 {transactions.map((tx) => {
                   const inflow = isInflow(tx)
-                  const cents = getDisplayCents(tx)
+                  const info = getAmountInfo(tx)
 
                   return (
                     <div
@@ -140,13 +174,20 @@ export function TransactionHistoryDialog({
                         )}
                       </div>
 
-                      <span
-                        className={`text-sm font-medium whitespace-nowrap ${
-                          inflow ? 'text-emerald-600' : 'text-red-600'
-                        }`}
-                      >
-                        {inflow ? '+' : '-'}{formatAmount(cents, currency)}
-                      </span>
+                      <div className="text-right shrink-0">
+                        <span
+                          className={`text-sm font-medium whitespace-nowrap ${
+                            inflow ? 'text-emerald-600' : 'text-red-600'
+                          }`}
+                        >
+                          {inflow ? '+' : '-'}{fmt(info.primaryCents, info.primaryCurrency)}
+                        </span>
+                        {info.secondaryCents != null && info.secondaryCurrency && (
+                          <p className="text-[10px] text-gray-400 whitespace-nowrap">
+                            ({fmt(info.secondaryCents, info.secondaryCurrency)})
+                          </p>
+                        )}
+                      </div>
 
                       <Button
                         variant="ghost"
