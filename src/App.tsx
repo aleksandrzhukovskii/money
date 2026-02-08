@@ -6,6 +6,9 @@ import { useBackup } from '@/hooks/useBackup'
 import { useAuthStore } from '@/stores/auth'
 import { AuthScreen, clearCredentials } from '@/components/AuthScreen'
 import { MainPage } from '@/pages/MainPage'
+import { IncomesPage } from '@/pages/IncomesPage'
+import { BudgetsPage } from '@/pages/BudgetsPage'
+import { SpendingsPage } from '@/pages/SpendingsPage'
 import { StatisticsPage } from '@/pages/StatisticsPage'
 import { Button } from '@/components/ui/button'
 
@@ -143,6 +146,9 @@ export function App() {
     <Routes>
       <Route element={<AppShell />}>
         <Route path="/" element={<MainPage />} />
+        <Route path="/incomes" element={<IncomesPage />} />
+        <Route path="/budgets" element={<BudgetsPage />} />
+        <Route path="/spendings" element={<SpendingsPage />} />
         <Route path="/statistics" element={<StatisticsPage />} />
       </Route>
     </Routes>

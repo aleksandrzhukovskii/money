@@ -1,8 +1,12 @@
 import { NavLink } from 'react-router-dom'
+import { Home, TrendingUp, Wallet, ShoppingCart, BarChart3, type LucideIcon } from 'lucide-react'
 
-const navItems = [
-  { to: '/', label: 'Home' },
-  { to: '/statistics', label: 'Statistics' },
+const navItems: { to: string; label: string; icon: LucideIcon }[] = [
+  { to: '/', label: 'Home', icon: Home },
+  { to: '/incomes', label: 'Incomes', icon: TrendingUp },
+  { to: '/budgets', label: 'Budgets', icon: Wallet },
+  { to: '/spendings', label: 'Spendings', icon: ShoppingCart },
+  { to: '/statistics', label: 'Statistics', icon: BarChart3 },
 ]
 
 export function Sidebar({ className = '' }: { className?: string }) {
@@ -13,14 +17,16 @@ export function Sidebar({ className = '' }: { className?: string }) {
         <NavLink
           key={item.to}
           to={item.to}
+          end={item.to === '/'}
           className={({ isActive }) =>
-            `block rounded-lg px-3 py-2 text-sm transition-colors ${
+            `flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${
               isActive
                 ? 'bg-emerald-100 text-emerald-900 font-medium'
                 : 'text-gray-700 hover:bg-gray-100'
             }`
           }
         >
+          <item.icon className="h-4 w-4" />
           {item.label}
         </NavLink>
       ))}

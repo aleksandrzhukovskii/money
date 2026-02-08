@@ -1,75 +1,42 @@
-import { useEffect, useState } from 'react'
-import {
-  DndContext,
-  DragOverlay,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragStartEvent,
-  type DragEndEvent,
-} from '@dnd-kit/core'
+import { useEffect, useMemo, useState } from 'react'
 import { useDatabase } from '@/hooks/useDatabase'
+import { useExchangeRate } from '@/hooks/useExchangeRate'
 import { useIncomesStore } from '@/stores/incomes'
 import { useBudgetsStore } from '@/stores/budgets'
 import { useSpendingTypesStore } from '@/stores/spendingTypes'
 import { useTagsStore } from '@/stores/tags'
-import { IncomesCarousel } from '@/components/main/IncomesCarousel'
-import { BudgetsCarousel } from '@/components/main/BudgetsCarousel'
-import { SpendingTypesList } from '@/components/main/SpendingTypesList'
-import { EntityCard } from '@/components/main/EntityCard'
-import { AddIncomeDialog } from '@/components/main/AddIncomeDialog'
-import { AddBudgetDialog } from '@/components/main/AddBudgetDialog'
-import { AddSpendingTypeDialog } from '@/components/main/AddSpendingTypeDialog'
+import { insertTransaction } from '@/db/queries/transactions'
+import { parseNumber } from '@/lib/parseNumber'
+import { EntityCombobox, type ComboboxItem, type ComboboxGroup } from '@/components/main/EntityCombobox'
+import { TagPicker } from '@/components/main/TagPicker'
 import { SettingsDialog } from '@/components/main/SettingsDialog'
-import { TransactionDialog } from '@/components/main/TransactionDialog'
 import { Button } from '@/components/ui/button'
-import { Settings } from 'lucide-react'
-import type { Income, Budget, BudgetWithBalance, SpendingType, TransactionType } from '@/types/database'
-
-interface TransactionDialogState {
-  type: TransactionType
-  sourceId: number
-  sourceName: string
-  sourceCurrency: string
-  destinationId: number
-  destinationName: string
-  destinationCurrency: string
-}
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Settings, Lock, Unlock, AlertTriangle } from 'lucide-react'
+import { toast } from 'sonner'
+import type { TransactionType } from '@/types/database'
 
 export function MainPage() {
-  const { db } = useDatabase()
-  const { items: incomes, load: loadIncomes } = useIncomesStore()
+  const { db, persistDebounced } = useDatabase()
+  const { items: incomes, monthlyEarned, load: loadIncomes } = useIncomesStore()
   const { itemsWithBalances: budgets, load: loadBudgets } = useBudgetsStore()
-  const { items: spendingTypes, load: loadSpendingTypes } = useSpendingTypesStore()
+  const { items: spendingTypes, monthlySpent, load: loadSpendingTypes } = useSpendingTypesStore()
   const { load: loadTags } = useTagsStore()
 
-  // Dialog states
-  const [incomeDialogOpen, setIncomeDialogOpen] = useState(false)
-  const [budgetDialogOpen, setBudgetDialogOpen] = useState(false)
-  const [spendingDialogOpen, setSpendingDialogOpen] = useState(false)
-  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
-  // Transaction dialog
-  const [txDialog, setTxDialog] = useState<TransactionDialogState | null>(null)
+  // Selection keys (derive full items from live store data)
+  const [fromKey, setFromKey] = useState<{ type: string; id: number } | null>(null)
+  const [toKey, setToKey] = useState<{ type: string; id: number } | null>(null)
 
-  // Editing states
-  const [editingIncome, setEditingIncome] = useState<Income | null>(null)
-  const [editingBudget, setEditingBudget] = useState<Budget | null>(null)
-  const [editingSpendingType, setEditingSpendingType] = useState<SpendingType | null>(null)
-
-  // Filters (per section)
-  const [incomeFilter, setIncomeFilter] = useState('')
-  const [budgetFilter, setBudgetFilter] = useState('')
-  const [spendingFilter, setSpendingFilter] = useState('')
-
-  // Drag state
-  const [activeId, setActiveId] = useState<string | null>(null)
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 8 },
-    }),
-  )
+  // Transaction fields
+  const [amount, setAmount] = useState('')
+  const [convertedAmount, setConvertedAmount] = useState('')
+  const [rateLocked, setRateLocked] = useState(true)
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [comment, setComment] = useState('')
+  const [tagIds, setTagIds] = useState<number[]>([])
 
   useEffect(() => {
     if (db) {
@@ -80,159 +47,295 @@ export function MainPage() {
     }
   }, [db, loadIncomes, loadBudgets, loadSpendingTypes, loadTags])
 
-  function parseDndId(dndId: string): { type: string; id: number } {
-    const [type, idStr] = dndId.split('-')
-    return { type: type!, id: parseInt(idStr!, 10) }
-  }
+  // Build combobox items from live store data
+  const fromItems: ComboboxItem[] = useMemo(() => [
+    ...incomes.map(i => ({
+      id: i.id,
+      type: 'income' as const,
+      name: i.name,
+      currency: i.currency,
+      displayAmount: monthlyEarned[i.id] ?? 0,
+      amountLabel: 'earned',
+    })),
+    ...budgets.map(b => ({
+      id: b.id,
+      type: 'budget' as const,
+      name: b.name,
+      currency: b.currency,
+      displayAmount: b.current_balance,
+      amountLabel: 'balance',
+    })),
+  ], [incomes, monthlyEarned, budgets])
 
-  function getOverlayProps(dndId: string): { name: string; currency: string; balance?: number } | null {
-    const { type, id } = parseDndId(dndId)
-    if (type === 'income') {
-      const item = incomes.find((i) => i.id === id)
-      if (item) return { name: item.name, currency: item.currency }
+  const toItemsAll: ComboboxItem[] = useMemo(() => [
+    ...budgets.map(b => ({
+      id: b.id,
+      type: 'budget' as const,
+      name: b.name,
+      currency: b.currency,
+      displayAmount: b.current_balance,
+      amountLabel: 'balance',
+    })),
+    ...spendingTypes.map(s => ({
+      id: s.id,
+      type: 'spending' as const,
+      name: s.name,
+      currency: s.currency,
+      displayAmount: monthlySpent[s.id] ?? 0,
+      amountLabel: 'spent',
+    })),
+  ], [budgets, spendingTypes, monthlySpent])
+
+  // Filter "To" items based on "From" selection
+  const filteredToItems = useMemo(() => {
+    if (!fromKey) return toItemsAll
+    if (fromKey.type === 'income') {
+      return toItemsAll.filter(i => i.type === 'budget')
     }
-    if (type === 'budget') {
-      const item = budgets.find((b) => b.id === id)
-      if (item) return { name: item.name, currency: item.currency, balance: item.current_balance }
+    if (fromKey.type === 'budget') {
+      return toItemsAll.filter(i => !(i.type === 'budget' && i.id === fromKey.id))
     }
+    return toItemsAll
+  }, [fromKey, toItemsAll])
+
+  // Derive full items from keys + live store data
+  const fromItem = useMemo(
+    () => fromKey ? fromItems.find(i => i.type === fromKey.type && i.id === fromKey.id) ?? null : null,
+    [fromKey, fromItems],
+  )
+  const toItem = useMemo(
+    () => toKey ? filteredToItems.find(i => i.type === toKey.type && i.id === toKey.id) ?? null : null,
+    [toKey, filteredToItems],
+  )
+
+  // Clear "To" if it becomes invalid when "From" changes
+  useEffect(() => {
+    if (!toKey || !fromKey) return
+    const isValid = filteredToItems.some(i => i.type === toKey.type && i.id === toKey.id)
+    if (!isValid) setToKey(null)
+  }, [fromKey, filteredToItems, toKey])
+
+  // Infer transaction type
+  function inferType(): TransactionType | null {
+    if (!fromItem || !toItem) return null
+    if (fromItem.type === 'income' && toItem.type === 'budget') return 'earning'
+    if (fromItem.type === 'budget' && toItem.type === 'budget') return 'transfer'
+    if (fromItem.type === 'budget' && toItem.type === 'spending') return 'spending'
     return null
   }
 
-  function handleDragStart(event: DragStartEvent) {
-    setActiveId(event.active.id as string)
-  }
+  const txType = inferType()
 
-  function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event
-    setActiveId(null)
+  // Cross-currency
+  const isCrossCurrency = !!(fromItem && toItem && fromItem.currency !== toItem.currency)
+  const { rate, loading: rateLoading, isStale } = useExchangeRate(
+    isCrossCurrency ? fromItem!.currency : '',
+    isCrossCurrency ? toItem!.currency : '',
+  )
 
-    if (!over) return
-
-    const source = parseDndId(active.id as string)
-    const target = parseDndId(over.id as string)
-
-    if (source.type === 'income' && target.type === 'budget') {
-      const income = incomes.find((i) => i.id === source.id)
-      const budget = budgets.find((b) => b.id === target.id)
-      if (income && budget) {
-        setTxDialog({
-          type: 'earning',
-          sourceId: income.id,
-          sourceName: income.name,
-          sourceCurrency: income.currency,
-          destinationId: budget.id,
-          destinationName: budget.name,
-          destinationCurrency: budget.currency,
-        })
-      }
-    } else if (source.type === 'budget' && target.type === 'spending') {
-      const budget = budgets.find((b) => b.id === source.id)
-      const st = spendingTypes.find((s) => s.id === target.id)
-      if (budget && st) {
-        setTxDialog({
-          type: 'spending',
-          sourceId: budget.id,
-          sourceName: budget.name,
-          sourceCurrency: budget.currency,
-          destinationId: st.id,
-          destinationName: st.name,
-          destinationCurrency: st.currency,
-        })
-      }
-    } else if (source.type === 'budget' && target.type === 'budget' && source.id !== target.id) {
-      const srcBudget = budgets.find((b) => b.id === source.id)
-      const dstBudget = budgets.find((b) => b.id === target.id)
-      if (srcBudget && dstBudget) {
-        setTxDialog({
-          type: 'transfer',
-          sourceId: srcBudget.id,
-          sourceName: srcBudget.name,
-          sourceCurrency: srcBudget.currency,
-          destinationId: dstBudget.id,
-          destinationName: dstBudget.name,
-          destinationCurrency: dstBudget.currency,
-        })
+  // Auto-calculate converted amount when locked
+  useEffect(() => {
+    if (rateLocked && rate && amount) {
+      const val = parseNumber(amount)
+      if (!isNaN(val)) {
+        setConvertedAmount((val * rate).toFixed(2))
       }
     }
+  }, [amount, rate, rateLocked])
+
+  function effectiveRate(): number | null {
+    const a = parseNumber(amount)
+    const c = parseNumber(convertedAmount)
+    if (!isNaN(a) && !isNaN(c) && a > 0) return c / a
+    return rate
   }
 
-  function handleDragCancel() {
-    setActiveId(null)
+  // Validation
+  const amountValid = !isNaN(parseNumber(amount)) && parseNumber(amount) > 0
+  const crossValid = !isCrossCurrency || (parseNumber(convertedAmount) > 0)
+  const canSave = !!txType && amountValid && crossValid
+
+  function handleAdd() {
+    if (!db || !fromItem || !toItem || !txType) return
+
+    const amountNum = parseNumber(amount)
+    if (isNaN(amountNum) || amountNum <= 0) return
+
+    const crossFields = isCrossCurrency
+      ? {
+          converted_amount: parseNumber(convertedAmount) || null,
+          destination_currency: toItem.currency,
+          exchange_rate: effectiveRate(),
+        }
+      : {}
+
+    const baseData = {
+      amount: amountNum,
+      source_currency: fromItem.currency,
+      date,
+      comment: comment.trim(),
+      tag_ids: tagIds,
+      ...crossFields,
+    }
+
+    if (txType === 'earning') {
+      insertTransaction(db, { type: 'earning', source_income_id: fromItem.id, destination_budget_id: toItem.id, ...baseData })
+    } else if (txType === 'spending') {
+      insertTransaction(db, { type: 'spending', source_budget_id: fromItem.id, destination_spending_type_id: toItem.id, ...baseData })
+    } else {
+      insertTransaction(db, { type: 'transfer', source_budget_id: fromItem.id, destination_budget_id: toItem.id, ...baseData })
+    }
+
+    persistDebounced()
+    loadBudgets(db)
+    loadIncomes(db)
+    loadSpendingTypes(db)
+    toast.success('Transaction saved')
+
+    // Clear partial state (keep from + date)
+    setToKey(null)
+    setAmount('')
+    setConvertedAmount('')
+    setRateLocked(true)
+    setComment('')
+    setTagIds([])
   }
 
-  const overlayProps = activeId ? getOverlayProps(activeId) : null
+  // Combobox groups
+  const fromGroups: ComboboxGroup[] = [
+    { type: 'income', heading: 'Incomes' },
+    { type: 'budget', heading: 'Budgets' },
+  ]
+
+  const toGroups: ComboboxGroup[] = useMemo(() => {
+    if (!fromKey) return [{ type: 'budget' as const, heading: 'Budgets' }, { type: 'spending' as const, heading: 'Spendings' }]
+    if (fromKey.type === 'income') return [{ type: 'budget' as const, heading: 'Budgets' }]
+    return [{ type: 'budget' as const, heading: 'Budgets' }, { type: 'spending' as const, heading: 'Spendings' }]
+  }, [fromKey])
 
   return (
     <div className="h-full overflow-y-auto">
       <header className="sticky top-0 z-10 border-b border-gray-200 bg-white px-4 py-3 flex items-center justify-between">
         <h1 className="text-xl font-bold">Money</h1>
-        <Button variant="ghost" size="icon" onClick={() => setSettingsDialogOpen(true)}>
+        <Button variant="ghost" size="icon" onClick={() => setSettingsOpen(true)}>
           <Settings className="h-5 w-5" />
         </Button>
       </header>
 
-      <DndContext
-        sensors={sensors}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-        onDragCancel={handleDragCancel}
-      >
-        <div className="p-4 space-y-6">
-          <IncomesCarousel
-            onAddClick={() => { setEditingIncome(null); setIncomeDialogOpen(true) }}
-            onEditClick={(income) => { setEditingIncome(income); setIncomeDialogOpen(true) }}
-            filter={incomeFilter}
-            onFilterChange={setIncomeFilter}
-          />
+      <div className="p-4 space-y-4">
+        <EntityCombobox
+          label="From"
+          items={fromItems}
+          value={fromKey}
+          onChange={setFromKey}
+          groups={fromGroups}
+          placeholder="Select source..."
+        />
 
-          <BudgetsCarousel
-            onAddClick={() => { setEditingBudget(null); setBudgetDialogOpen(true) }}
-            onEditClick={(budget: BudgetWithBalance) => { setEditingBudget(budget); setBudgetDialogOpen(true) }}
-            activeSource={activeId}
-            filter={budgetFilter}
-            onFilterChange={setBudgetFilter}
-          />
+        <EntityCombobox
+          label="To"
+          items={filteredToItems}
+          value={toKey}
+          onChange={setToKey}
+          groups={toGroups}
+          placeholder="Select destination..."
+        />
 
-          <SpendingTypesList
-            onAddClick={() => { setEditingSpendingType(null); setSpendingDialogOpen(true) }}
-            onEditClick={(st) => { setEditingSpendingType(st); setSpendingDialogOpen(true) }}
-            activeSource={activeId}
-            filter={spendingFilter}
-            onFilterChange={setSpendingFilter}
+        {/* Amount */}
+        <div className="space-y-1.5">
+          <Label htmlFor="home-amount">
+            Amount{fromItem ? ` (${fromItem.currency})` : ''}
+          </Label>
+          <Input
+            id="home-amount"
+            inputMode="decimal"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="0.00"
           />
         </div>
 
-        <DragOverlay>
-          {overlayProps && <EntityCard {...overlayProps} />}
-        </DragOverlay>
-      </DndContext>
+        {/* Cross-currency */}
+        {isCrossCurrency && (
+          <div className="space-y-2 rounded-lg border border-gray-200 p-3">
+            {rateLoading ? (
+              <p className="text-sm text-gray-500">Fetching exchange rate...</p>
+            ) : rate ? (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <span>1 {fromItem!.currency} = {rate.toFixed(4)} {toItem!.currency}</span>
+                {isStale && (
+                  <span className="flex items-center gap-1 text-amber-600">
+                    <AlertTriangle className="h-3 w-3" />
+                    cached
+                  </span>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-amber-600">No exchange rate available</p>
+            )}
 
-      <AddIncomeDialog
-        open={incomeDialogOpen}
-        onOpenChange={setIncomeDialogOpen}
-        editing={editingIncome}
-      />
-      <AddBudgetDialog
-        open={budgetDialogOpen}
-        onOpenChange={setBudgetDialogOpen}
-        editing={editingBudget}
-      />
-      <AddSpendingTypeDialog
-        open={spendingDialogOpen}
-        onOpenChange={setSpendingDialogOpen}
-        editing={editingSpendingType}
-      />
-      <SettingsDialog
-        open={settingsDialogOpen}
-        onOpenChange={setSettingsDialogOpen}
-      />
-      {txDialog && (
-        <TransactionDialog
-          open={true}
-          onOpenChange={(open) => { if (!open) setTxDialog(null) }}
-          {...txDialog}
-        />
-      )}
+            <div className="flex items-end gap-2">
+              <div className="flex-1 space-y-1.5">
+                <Label htmlFor="home-converted">Converted ({toItem!.currency})</Label>
+                <Input
+                  id="home-converted"
+                  inputMode="decimal"
+                  value={convertedAmount}
+                  onChange={(e) => setConvertedAmount(e.target.value)}
+                  placeholder="0.00"
+                  disabled={rateLocked}
+                />
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="shrink-0"
+                onClick={() => setRateLocked(!rateLocked)}
+                title={rateLocked ? 'Unlock to enter custom amount' : 'Lock to auto-calculate'}
+              >
+                {rateLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Date */}
+        <div className="space-y-1.5">
+          <Label htmlFor="home-date">Date</Label>
+          <Input
+            id="home-date"
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+          />
+        </div>
+
+        {/* Comment */}
+        <div className="space-y-1.5">
+          <Label htmlFor="home-comment">Comment</Label>
+          <Input
+            id="home-comment"
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            placeholder="Optional"
+          />
+        </div>
+
+        {/* Tags */}
+        <div className="space-y-1.5">
+          <Label>Tags</Label>
+          <div>
+            <TagPicker selectedTagIds={tagIds} onChange={setTagIds} />
+          </div>
+        </div>
+
+        {/* Add button */}
+        <Button className="w-full" onClick={handleAdd} disabled={!canSave}>
+          {txType ? `Add ${txType.charAt(0).toUpperCase() + txType.slice(1)}` : 'Add Transaction'}
+        </Button>
+      </div>
+
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </div>
   )
 }
