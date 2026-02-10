@@ -122,7 +122,7 @@ export function AuthScreen() {
                   id="password"
                   name="password"
                   type="password"
-                  autoComplete="current-password"
+                  autoComplete="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter password"
@@ -158,12 +158,12 @@ export function AuthScreen() {
         <CardContent>
           <form onSubmit={handleSetup} className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="setup-password">Password</Label>
+              <Label htmlFor="password">Password</Label>
               <Input
-                id="setup-password"
+                id="password"
                 name="password"
                 type="password"
-                autoComplete="new-password"
+                autoComplete="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Choose a password"
@@ -175,6 +175,7 @@ export function AuthScreen() {
               <Input
                 id="confirm-password"
                 name="confirm-password"
+                autoComplete="password"
                 type="password"
                 data-bwautofill
                 value={confirmPassword}
@@ -183,9 +184,9 @@ export function AuthScreen() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="setup-repo">GitHub Repository</Label>
+              <Label htmlFor="repo">GitHub Repository</Label>
               <Input
-                id="setup-repo"
+                id="repo"
                 name="repo"
                 autoComplete="username"
                 value={repo}
@@ -194,10 +195,11 @@ export function AuthScreen() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="setup-token">Personal Access Token</Label>
+              <Label htmlFor="token">Personal Access Token</Label>
               <Input
-                id="setup-token"
+                id="token"
                 name="token"
+                autoComplete="token"
                 type="password"
                 data-bwautofill
                 value={token}
