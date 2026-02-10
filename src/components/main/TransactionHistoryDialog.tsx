@@ -142,16 +142,16 @@ export function TransactionHistoryDialog({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {onEdit && (
+                <Button variant="ghost" size="icon" className="shrink-0" onClick={onEdit}>
+                  <Settings className="h-4 w-4" />
+                </Button>
+              )}
               <div>
                 <DialogTitle>{entityName}</DialogTitle>
                 <DialogDescription>Transaction history</DialogDescription>
               </div>
-              {onEdit && (
-                <Button variant="ghost" size="icon" onClick={onEdit}>
-                  <Settings className="h-4 w-4" />
-                </Button>
-              )}
             </div>
           </DialogHeader>
 
@@ -182,6 +182,9 @@ export function TransactionHistoryDialog({
                         </p>
                         {tx.comment && (
                           <p className="text-xs text-gray-400 truncate">{tx.comment}</p>
+                        )}
+                        {tx.tags && tx.tags.length > 0 && (
+                          <p className="text-[10px] text-gray-400 truncate">{tx.tags.map(t => `#${t}`).join(' ')}</p>
                         )}
                       </div>
 

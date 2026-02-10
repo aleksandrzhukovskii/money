@@ -3,9 +3,16 @@ import { useDatabase, deleteLocalDatabase, resetDatabase } from '@/hooks/useData
 import { useBackup } from '@/hooks/useBackup'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
+import { useIncomesStore } from '@/stores/incomes'
+import { useBudgetsStore } from '@/stores/budgets'
+import { useSpendingTypesStore } from '@/stores/spendingTypes'
+import { useTagsStore } from '@/stores/tags'
 import { clearCredentials } from '@/components/AuthScreen'
 import { getSetting, setSetting } from '@/db/queries/settings'
 import { CurrencySelect } from '@/components/CurrencySelect'
+import { CsvImportDialog } from './CsvImportDialog'
+import { parseCsv, executeCsvImport } from '@/lib/csvImport'
+import type { ParseResult, EntityDef } from '@/lib/csvImport'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
@@ -29,10 +36,13 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const backup = useBackup()
   const { repo } = useAuthStore()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const csvInputRef = useRef<HTMLInputElement>(null)
 
   const [displayCurrency, setDisplayCurrency] = useState('')
   const compactAmounts = useAppStore(s => s.compactAmounts)
   const toastPosition = useAppStore(s => s.toastPosition)
+  const [csvImportData, setCsvImportData] = useState<ParseResult | null>(null)
+  const [csvImportOpen, setCsvImportOpen] = useState(false)
 
   useEffect(() => {
     if (open && db) {
@@ -84,7 +94,47 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     onOpenChange(false)
   }
 
+  function handleCsvFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      try {
+        const result = parseCsv(reader.result as string)
+        if (result.rows.length === 0) {
+          toast.error('No transactions found in CSV')
+          return
+        }
+        setCsvImportData(result)
+        setCsvImportOpen(true)
+      } catch (err) {
+        toast.error(`CSV parse error: ${err instanceof Error ? err.message : String(err)}`)
+      }
+    }
+    reader.readAsText(file)
+    if (csvInputRef.current) csvInputRef.current.value = ''
+  }
+
+  function handleCsvConfirm(entities: EntityDef[]) {
+    if (!db || !csvImportData) return
+    try {
+      executeCsvImport(db, csvImportData.rows, entities, csvImportData.tags)
+      persistDebounced()
+      useIncomesStore.getState().load(db)
+      useBudgetsStore.getState().load(db)
+      useSpendingTypesStore.getState().load(db)
+      useTagsStore.getState().load(db)
+      toast.success(`Imported ${csvImportData.rows.length} transactions`)
+      setCsvImportOpen(false)
+      setCsvImportData(null)
+      onOpenChange(false)
+    } catch (err) {
+      toast.error(`Import failed: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85vh] overflow-y-auto">
         <DialogHeader>
@@ -166,6 +216,9 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
                 Import File
               </Button>
+              <Button variant="outline" size="sm" onClick={() => csvInputRef.current?.click()}>
+                Import CSV
+              </Button>
             </div>
             <input
               ref={fileInputRef}
@@ -173,6 +226,13 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               accept=".enc,.db"
               className="hidden"
               onChange={handleImport}
+            />
+            <input
+              ref={csvInputRef}
+              type="file"
+              accept=".csv"
+              className="hidden"
+              onChange={handleCsvFileSelected}
             />
           </div>
 
@@ -191,5 +251,15 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    {csvImportData && (
+      <CsvImportDialog
+        open={csvImportOpen}
+        onOpenChange={(v) => { setCsvImportOpen(v); if (!v) setCsvImportData(null) }}
+        parseResult={csvImportData}
+        onConfirm={handleCsvConfirm}
+      />
+    )}
+    </>
   )
 }

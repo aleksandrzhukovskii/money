@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useDatabase } from '@/hooks/useDatabase'
 import { useTagsStore } from '@/stores/tags'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Plus, X } from 'lucide-react'
 
@@ -26,7 +25,11 @@ export function TagPicker({ selectedTagIds, onChange }: TagPickerProps) {
   }
 
   function handleAddTag() {
-    if (!db || !newTagName.trim()) return
+    if (!db || !newTagName.trim()) {
+      setShowInput(false)
+      setNewTagName('')
+      return
+    }
     const id = add(db, { name: newTagName.trim() })
     persistDebounced()
     onChange([...selectedTagIds, id])
@@ -61,21 +64,15 @@ export function TagPicker({ selectedTagIds, onChange }: TagPickerProps) {
         )
       })}
       {showInput ? (
-        <div className="flex gap-1 items-center">
-          <Input
-            value={newTagName}
-            onChange={(e) => setNewTagName(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Tag name"
-            className="h-7 w-28 text-base"
-          />
-          <Button size="sm" variant="ghost" className="h-7 px-2" onClick={handleAddTag} disabled={!newTagName.trim()}>
-            Add
-          </Button>
-          <Button size="sm" variant="ghost" className="h-7 px-1" onClick={() => { setShowInput(false); setNewTagName('') }}>
-            <X className="h-3 w-3" />
-          </Button>
-        </div>
+        <Input
+          value={newTagName}
+          onChange={(e) => setNewTagName(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onBlur={handleAddTag}
+          placeholder="Tag name"
+          className="h-7 w-28 text-base"
+          autoFocus
+        />
       ) : (
         <Badge
           variant="outline"

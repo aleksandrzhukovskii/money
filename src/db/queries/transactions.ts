@@ -228,11 +228,23 @@ export function getTransactionsForEntity(
   const result = db.exec(sql, params)
   if (result.length === 0) return []
   const columns = result[0]!.columns
-  return result[0]!.values.map((row) => {
+  const transactions = result[0]!.values.map((row) => {
     const obj: Record<string, unknown> = {}
     columns.forEach((col, i) => { obj[col] = row[i] })
     return obj as unknown as TransactionWithDetails
   })
+
+  for (const tx of transactions) {
+    const tagResult = db.exec(
+      'SELECT t.name FROM tags t JOIN transaction_tags tt ON t.id = tt.tag_id WHERE tt.transaction_id = ?',
+      [tx.id],
+    )
+    tx.tags = tagResult.length > 0
+      ? tagResult[0]!.values.map((r) => r[0] as string)
+      : []
+  }
+
+  return transactions
 }
 
 export function getTransactionCount(db: Database): number {

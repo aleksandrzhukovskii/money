@@ -12,7 +12,7 @@ import { TagMultiSelect } from '@/components/main/TagMultiSelect'
 import { SettingsDialog } from '@/components/main/SettingsDialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Settings, Trash2 } from 'lucide-react'
+import { Settings, Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatCentsShort } from '@/lib/format'
 import type { TransactionWithDetails } from '@/types/database'
@@ -142,6 +142,16 @@ export function HistoryPage() {
             className="flex-1 text-base"
             placeholder="To"
           />
+          {(dateFrom || dateTo) && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="shrink-0 h-8 w-8 text-gray-400"
+              onClick={() => { setDateFrom(''); setDateTo('') }}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
         </div>
 
         {/* Search + Tags */}
@@ -184,7 +194,7 @@ export function HistoryPage() {
                       <p className="text-xs text-gray-400 truncate">{tx.comment}</p>
                     )}
                     {tx.tags && tx.tags.length > 0 && (
-                      <p className="text-[10px] text-gray-400 truncate">{tx.tags.join(', ')}</p>
+                      <p className="text-[10px] text-gray-400 truncate">{tx.tags.map(t => `#${t}`).join(' ')}</p>
                     )}
                   </div>
 

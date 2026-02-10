@@ -6,7 +6,7 @@ const navItems: { to: string; label: string; icon: LucideIcon }[] = [
   { to: '/incomes', label: 'Earn', icon: TrendingUp },
   { to: '/budgets', label: 'Budget', icon: Wallet },
   { to: '/spendings', label: 'Spend', icon: ShoppingCart },
-  { to: '/history', label: 'Log', icon: History },
+  { to: '/history', label: 'History', icon: History },
   { to: '/statistics', label: 'Stats', icon: BarChart3 },
 ]
 
