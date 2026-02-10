@@ -58,6 +58,32 @@ export function deleteIncome(db: Database, id: number): void {
   db.run('UPDATE incomes SET is_active = 0 WHERE id = ?', [id])
 }
 
+/** Merge source income into target: tag affected txs, reassign, deactivate source */
+export function mergeIncome(db: Database, sourceId: number, targetId: number): void {
+  const source = getIncomeById(db, sourceId)
+  if (!source) return
+
+  // Get affected transaction IDs
+  const txResult = db.exec('SELECT id FROM transactions WHERE source_income_id = ?', [sourceId])
+  const txIds = txResult.length > 0 ? txResult[0]!.values.map(r => r[0] as number) : []
+
+  if (txIds.length > 0) {
+    // Create or find tag with source entity name
+    db.run("INSERT OR IGNORE INTO tags (name, color) VALUES (?, '#9ca3af')", [source.name])
+    const tagResult = db.exec('SELECT id FROM tags WHERE name = ?', [source.name])
+    const tagId = tagResult[0]!.values[0]![0] as number
+
+    // Tag all affected transactions
+    for (const txId of txIds) {
+      db.run('INSERT OR IGNORE INTO transaction_tags (transaction_id, tag_id) VALUES (?, ?)', [txId, tagId])
+    }
+  }
+
+  // Reassign and deactivate
+  db.run('UPDATE transactions SET source_income_id = ? WHERE source_income_id = ?', [targetId, sourceId])
+  db.run('UPDATE incomes SET is_active = 0 WHERE id = ?', [sourceId])
+}
+
 /** Returns a map of income_id → total earned amount for the current month */
 export function getMonthlyEarnings(db: Database): Record<number, number> {
   const now = new Date()

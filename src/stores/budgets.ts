@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { Budget, BudgetWithBalance } from '@/types/database'
-import { getBudgets, getBudgetsWithBalances, insertBudget, updateBudget, deleteBudget } from '@/db/queries/budgets'
+import { getBudgets, getBudgetsWithBalances, insertBudget, updateBudget, deleteBudget, mergeBudget } from '@/db/queries/budgets'
 import type { Database } from 'sql.js'
 
 interface BudgetsState {
@@ -10,6 +10,7 @@ interface BudgetsState {
   add: (db: Database, data: { name: string; currency: string; initial_balance?: number; icon?: string; color?: string }) => number
   update: (db: Database, id: number, data: Partial<Pick<Budget, 'name' | 'currency' | 'initial_balance' | 'icon' | 'color' | 'is_active' | 'sort_order'>>) => void
   remove: (db: Database, id: number) => void
+  merge: (db: Database, sourceId: number, targetId: number) => void
 }
 
 export const useBudgetsStore = create<BudgetsState>((set) => ({
@@ -32,6 +33,10 @@ export const useBudgetsStore = create<BudgetsState>((set) => ({
   },
   remove: (db, id) => {
     deleteBudget(db, id)
+    set({ items: getBudgets(db), itemsWithBalances: getBudgetsWithBalances(db) })
+  },
+  merge: (db, sourceId, targetId) => {
+    mergeBudget(db, sourceId, targetId)
     set({ items: getBudgets(db), itemsWithBalances: getBudgetsWithBalances(db) })
   },
 }))

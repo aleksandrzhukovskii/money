@@ -11,7 +11,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'sql-wasm.wasm'],
+      includeAssets: ['favicon.png', 'apple-touch-icon.png', 'sql-wasm.wasm'],
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,wasm}'],
         runtimeCaching: [

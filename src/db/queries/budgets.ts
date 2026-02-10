@@ -82,3 +82,32 @@ export function updateBudget(
 export function deleteBudget(db: Database, id: number): void {
   db.run('UPDATE budgets SET is_active = 0 WHERE id = ?', [id])
 }
+
+/** Merge source budget into target: tag affected txs, reassign both FK columns, deactivate source */
+export function mergeBudget(db: Database, sourceId: number, targetId: number): void {
+  const source = getBudgetById(db, sourceId)
+  if (!source) return
+
+  // Get affected transaction IDs (source or destination)
+  const txResult = db.exec(
+    'SELECT id FROM transactions WHERE source_budget_id = ? OR destination_budget_id = ?',
+    [sourceId, sourceId],
+  )
+  const txIds = txResult.length > 0 ? txResult[0]!.values.map(r => r[0] as number) : []
+
+  if (txIds.length > 0) {
+    // Create or find tag with source entity name
+    db.run("INSERT OR IGNORE INTO tags (name, color) VALUES (?, '#9ca3af')", [source.name])
+    const tagResult = db.exec('SELECT id FROM tags WHERE name = ?', [source.name])
+    const tagId = tagResult[0]!.values[0]![0] as number
+
+    for (const txId of txIds) {
+      db.run('INSERT OR IGNORE INTO transaction_tags (transaction_id, tag_id) VALUES (?, ?)', [txId, tagId])
+    }
+  }
+
+  // Reassign both FK columns and deactivate
+  db.run('UPDATE transactions SET source_budget_id = ? WHERE source_budget_id = ?', [targetId, sourceId])
+  db.run('UPDATE transactions SET destination_budget_id = ? WHERE destination_budget_id = ?', [targetId, sourceId])
+  db.run('UPDATE budgets SET is_active = 0 WHERE id = ?', [sourceId])
+}

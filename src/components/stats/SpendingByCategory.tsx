@@ -5,6 +5,12 @@ interface SpendingByCategoryProps {
   data: CategorySpending[]
 }
 
+const PALETTE = [
+  '#a3c4f3', '#b5ead7', '#ffd6a5', '#ffadad', '#cdb4db',
+  '#bde0fe', '#d4a5a5', '#c1fba4', '#ffc6ff', '#fdffb6',
+  '#caffbf', '#9bf6ff', '#e4c1f9', '#f1c0e8', '#a2d2ff',
+]
+
 export function SpendingByCategory({ data }: SpendingByCategoryProps) {
   if (data.length === 0) {
     return (
@@ -39,10 +45,10 @@ export function SpendingByCategory({ data }: SpendingByCategoryProps) {
         emphasis: {
           label: { show: true, fontWeight: 'bold' as const },
         },
-        data: data.map((d) => ({
+        data: data.map((d, i) => ({
           name: d.name,
           value: d.total,
-          itemStyle: { color: d.color },
+          itemStyle: { color: PALETTE[i % PALETTE.length] },
         })),
       },
     ],

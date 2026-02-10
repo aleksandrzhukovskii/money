@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { Income } from '@/types/database'
-import { getIncomes, insertIncome, updateIncome, deleteIncome, getMonthlyEarnings } from '@/db/queries/incomes'
+import { getIncomes, insertIncome, updateIncome, deleteIncome, getMonthlyEarnings, mergeIncome } from '@/db/queries/incomes'
 import type { Database } from 'sql.js'
 
 interface IncomesState {
@@ -10,6 +10,7 @@ interface IncomesState {
   add: (db: Database, data: { name: string; currency: string; expected_amount?: number; icon?: string; color?: string }) => number
   update: (db: Database, id: number, data: Partial<Pick<Income, 'name' | 'currency' | 'expected_amount' | 'icon' | 'color' | 'is_active' | 'sort_order'>>) => void
   remove: (db: Database, id: number) => void
+  merge: (db: Database, sourceId: number, targetId: number) => void
 }
 
 export const useIncomesStore = create<IncomesState>((set) => ({
@@ -29,6 +30,10 @@ export const useIncomesStore = create<IncomesState>((set) => ({
   },
   remove: (db, id) => {
     deleteIncome(db, id)
+    set({ items: getIncomes(db), monthlyEarned: getMonthlyEarnings(db) })
+  },
+  merge: (db, sourceId, targetId) => {
+    mergeIncome(db, sourceId, targetId)
     set({ items: getIncomes(db), monthlyEarned: getMonthlyEarnings(db) })
   },
 }))
