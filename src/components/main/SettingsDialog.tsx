@@ -98,6 +98,26 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     onOpenChange(false)
   }
 
+  async function handleCheckUpdate() {
+    try {
+      const registration = await navigator.serviceWorker?.getRegistration()
+      if (registration) {
+        await registration.update()
+        if (registration.waiting) {
+          registration.waiting.postMessage({ type: 'SKIP_WAITING' })
+          toast.success('Update found — reloading...')
+          setTimeout(() => window.location.reload(), 1000)
+        } else {
+          toast('App is up to date')
+        }
+      } else {
+        toast('No service worker registered')
+      }
+    } catch (err) {
+      toast.error(`Update check failed: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+
   function handleCsvFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -238,6 +258,18 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               className="hidden"
               onChange={handleCsvFileSelected}
             />
+          </div>
+
+          <Separator />
+
+          {/* App Update */}
+          <div>
+            <Label>App Update</Label>
+            <div className="flex gap-2 mt-2">
+              <Button variant="outline" size="sm" onClick={handleCheckUpdate}>
+                Check for Updates
+              </Button>
+            </div>
           </div>
 
           <Separator />
