@@ -8,8 +8,8 @@ interface AddCardProps {
 }
 
 const addMinH = {
-  small:  'min-h-[48px]',
-  medium: 'min-h-[60px]',
+  small:  'min-h-[36px]',
+  medium: 'min-h-[48px]',
   large:  'min-h-[80px]',
 } as const
 

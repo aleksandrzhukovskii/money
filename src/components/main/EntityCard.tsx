@@ -28,8 +28,8 @@ function progressColor(ratio: number): string {
 }
 
 const sizeStyles = {
-  small:  { pad: 'p-1',   gap: 'mt-0.5' },
-  medium: { pad: 'p-1.5', gap: 'mt-0.5' },
+  small:  { pad: 'p-0.5', gap: 'mt-1' },
+  medium: { pad: 'p-1',   gap: 'mt-1' },
   large:  { pad: 'p-3',   gap: 'mt-1' },
 } as const
 
