@@ -28,9 +28,9 @@ function progressColor(ratio: number): string {
 }
 
 const sizeStyles = {
-  small:  { pad: 'p-0.5', gap: 'mt-1' },
-  medium: { pad: 'p-1',   gap: 'mt-1' },
-  large:  { pad: 'p-3',   gap: 'mt-1' },
+  small:  'px-3 py-0.5',
+  medium: 'px-3 py-1',
+  large:  'p-3',
 } as const
 
 export function EntityCard({ name, currency, balance, earned, expectedAmount, spent, progress, isDragging, hidden, onClick }: EntityCardProps) {
@@ -38,8 +38,6 @@ export function EntityCard({ name, currency, balance, earned, expectedAmount, sp
   const cardSize = useAppStore(s => s.cardSize)
   const fmt = compact ? formatCentsShort : formatCents
   const fmtSmall = compact ? formatCentsShort : formatCentsCompact
-  const s = sizeStyles[cardSize]
-
   const bgStyle = progress !== undefined
     ? { backgroundColor: progressColor(progress) }
     : undefined
@@ -52,16 +50,16 @@ export function EntityCard({ name, currency, balance, earned, expectedAmount, sp
       style={bgStyle}
       onClick={onClick}
     >
-      <CardContent className={s.pad}>
+      <CardContent className={sizeStyles[cardSize]}>
         <p className="font-medium truncate">{name}</p>
-        <Badge variant="secondary" className={s.gap}>{currency}</Badge>
+        <Badge variant="secondary" className="mt-1">{currency}</Badge>
         {balance !== undefined && (
-          <p className={`text-sm font-medium ${s.gap} ${balance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+          <p className={`text-sm font-medium mt-1 ${balance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
             {fmt(balance, currency)}
           </p>
         )}
         {earned !== undefined && (
-          <p className={`text-xs ${s.gap} text-gray-600`}>
+          <p className="text-xs mt-1 text-gray-600">
             {fmtSmall(earned, currency)}
             {expectedAmount !== undefined && expectedAmount > 0 && (
               <> / {fmtSmall(expectedAmount, currency)}</>
@@ -69,7 +67,7 @@ export function EntityCard({ name, currency, balance, earned, expectedAmount, sp
           </p>
         )}
         {spent !== undefined && spent > 0 && (
-          <p className={`text-xs font-medium ${s.gap} text-red-600`}>
+          <p className="text-xs font-medium mt-1 text-red-600">
             {fmtSmall(spent, currency)}
           </p>
         )}
