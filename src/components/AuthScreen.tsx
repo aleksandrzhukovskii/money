@@ -120,8 +120,9 @@ export function AuthScreen() {
                 <Label htmlFor="password">Password</Label>
                 <Input
                   id="password"
+                  name="password"
                   type="password"
-                  autoComplete="password"
+                  autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter password"
@@ -160,8 +161,9 @@ export function AuthScreen() {
               <Label htmlFor="setup-password">Password</Label>
               <Input
                 id="setup-password"
+                name="password"
                 type="password"
-                autoComplete="password"
+                autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Choose a password"
@@ -172,8 +174,9 @@ export function AuthScreen() {
               <Label htmlFor="confirm-password">Confirm Password</Label>
               <Input
                 id="confirm-password"
+                name="confirm-password"
                 type="password"
-                autoComplete="password"
+                autoComplete="new-password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="Confirm password"
@@ -183,6 +186,8 @@ export function AuthScreen() {
               <Label htmlFor="setup-repo">GitHub Repository</Label>
               <Input
                 id="setup-repo"
+                name="repo"
+                autoComplete="username"
                 value={repo}
                 onChange={(e) => setRepo(e.target.value)}
                 placeholder="owner/repo-name"
@@ -192,6 +197,7 @@ export function AuthScreen() {
               <Label htmlFor="setup-token">Personal Access Token</Label>
               <Input
                 id="setup-token"
+                name="token"
                 type="password"
                 autoComplete="off"
                 value={token}
