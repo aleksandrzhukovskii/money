@@ -19,8 +19,8 @@ export function IncomeVsExpense({ data }: IncomeVsExpenseProps) {
   const spendingByMonth = new Map<string, number>()
 
   for (const d of data) {
-    if (d.type === 'earning') earningByMonth.set(d.month, d.total / 100)
-    if (d.type === 'spending') spendingByMonth.set(d.month, d.total / 100)
+    if (d.type === 'earning') earningByMonth.set(d.month, Math.round(d.total) / 100)
+    if (d.type === 'spending') spendingByMonth.set(d.month, Math.round(d.total) / 100)
   }
 
   const earningData = months.map((m) => earningByMonth.get(m) ?? 0)
