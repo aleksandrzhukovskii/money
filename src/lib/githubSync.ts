@@ -11,8 +11,18 @@ function headers(token: string) {
 
 interface FileInfo {
   sha: string
-  content: string
-  encoding: string
+  content?: string
+  encoding?: string
+  size?: number
+}
+
+function base64ToBytes(base64: string): Uint8Array {
+  const binary = atob(base64.replace(/\n/g, ''))
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i)
+  }
+  return bytes
 }
 
 export async function getFile(
@@ -27,13 +37,19 @@ export async function getFile(
   if (!res.ok) throw new Error(`GitHub API error: ${res.status}`)
 
   const file: FileInfo = await res.json()
-  const binary = atob(file.content.replace(/\n/g, ''))
-  const bytes = new Uint8Array(binary.length)
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i)
+
+  // Small files: content is inline base64
+  if (file.content) {
+    return { data: base64ToBytes(file.content), sha: file.sha }
   }
 
-  return { data: bytes, sha: file.sha }
+  // Large files (>1MB): Contents API omits content, use Git Blobs API
+  const blobRes = await fetch(`${API_BASE}/repos/${repo}/git/blobs/${file.sha}`, {
+    headers: headers(token),
+  })
+  if (!blobRes.ok) throw new Error(`GitHub Blob API error: ${blobRes.status}`)
+  const blob: { content: string; sha: string } = await blobRes.json()
+  return { data: base64ToBytes(blob.content), sha: blob.sha }
 }
 
 export async function putFile(
@@ -43,11 +59,11 @@ export async function putFile(
   existingSha: string | null,
 ): Promise<string> {
   // Base64 encode the binary data
-  let binary = ''
-  for (let i = 0; i < data.length; i++) {
-    binary += String.fromCharCode(data[i]!)
+  const chunks: string[] = []
+  for (let i = 0; i < data.length; i += 8192) {
+    chunks.push(String.fromCharCode(...data.subarray(i, i + 8192)))
   }
-  const content = btoa(binary)
+  const content = btoa(chunks.join(''))
 
   const body: Record<string, string> = {
     message: `sync: ${new Date().toISOString()}`,
