@@ -249,7 +249,7 @@ export function getFilteredMonthlyExpenses(
 ): MonthlyExpense[] {
   const joins: string[] = []
   const conditions: string[] = ["t.type = 'spending'", "t.date BETWEEN ? AND ?"]
-  const params: (string | number)[] = [...dcParams(dc, 1)]
+  const params: (string | number)[] = [...dcParams(dc, 1), dateFrom, dateTo]
 
   if (tagIds && tagIds.length > 0) {
     joins.push('JOIN transaction_tags tt ON tt.transaction_id = t.id')
@@ -261,8 +261,6 @@ export function getFilteredMonthlyExpenses(
     conditions.push(`t.destination_spending_type_id IN (${spendingTypeIds.map(() => '?').join(',')})`)
     params.push(...spendingTypeIds)
   }
-
-  params.push(dateFrom, dateTo)
 
   const sql = `SELECT strftime('%Y-%m', t."date") as month,
      SUM(${TX_TO_DC}) as total
@@ -280,7 +278,7 @@ export function getFilteredMonthlyExpenses(
   }))
 }
 
-export function getCurrencyHoldings(db: Database): CurrencyHolding[] {
+export function getCurrencyHoldings(db: Database, dc: string): CurrencyHolding[] {
   const result = db.exec(`
     SELECT b.currency,
       SUM(
@@ -290,12 +288,25 @@ export function getCurrencyHoldings(db: Database): CurrencyHolding[] {
           ) FROM transactions t WHERE t.destination_budget_id = b.id), 0)
         - COALESCE((SELECT SUM(t.amount)
           FROM transactions t WHERE t.source_budget_id = b.id), 0)
-      ) as total
+      ) * CASE WHEN b.currency = ? THEN 1 ELSE COALESCE(
+        (SELECT er.rate FROM exchange_rates er
+         WHERE er.base_currency = b.currency AND er.target_currency = ?
+         ORDER BY er."date" DESC LIMIT 1),
+        (SELECT
+          (SELECT er.rate FROM exchange_rates er
+           WHERE er.base_currency = b.currency AND er.target_currency = 'USD'
+           ORDER BY er."date" DESC LIMIT 1)
+          *
+          (SELECT er.rate FROM exchange_rates er
+           WHERE er.base_currency = 'USD' AND er.target_currency = ?
+           ORDER BY er."date" DESC LIMIT 1)
+        ),
+        1) END as total
     FROM budgets b
     WHERE b.is_active = 1
     GROUP BY b.currency
     ORDER BY total DESC
-  `)
+  `, [dc, dc, dc])
   if (result.length === 0) return []
   return result[0]!.values.map((row) => ({
     currency: row[0] as string,

@@ -3,9 +3,10 @@ import type { CurrencyHolding } from '@/db/queries/statistics'
 
 interface CurrencyBreakdownProps {
   data: CurrencyHolding[]
+  displayCurrency?: string
 }
 
-export function CurrencyBreakdown({ data }: CurrencyBreakdownProps) {
+export function CurrencyBreakdown({ data, displayCurrency }: CurrencyBreakdownProps) {
   if (data.length === 0) {
     return (
       <div className="text-center text-muted-foreground py-8">
@@ -20,8 +21,10 @@ export function CurrencyBreakdown({ data }: CurrencyBreakdownProps) {
   const option = {
     tooltip: {
       trigger: 'axis' as const,
-      formatter: (params: { name: string; value: number }[]) =>
-        `${params[0]!.name}: ${params[0]!.value.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+      formatter: (params: { name: string; value: number }[]) => {
+        const suffix = displayCurrency && params[0]!.name !== displayCurrency ? ` ${displayCurrency}` : ''
+        return `${params[0]!.name}: ${params[0]!.value.toLocaleString(undefined, { minimumFractionDigits: 2 })}${suffix}`
+      },
     },
     grid: { left: 60, right: 20, top: 10, bottom: 20 },
     xAxis: {

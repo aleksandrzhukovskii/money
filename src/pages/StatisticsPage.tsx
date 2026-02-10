@@ -14,6 +14,22 @@ import { MonthlyTrend } from '@/components/stats/MonthlyTrend'
 import { BudgetBalanceTrend } from '@/components/stats/BudgetBalanceTrend'
 import { TagCloud } from '@/components/stats/TagCloud'
 import { CurrencyBreakdown } from '@/components/stats/CurrencyBreakdown'
+import { SettingsDialog } from '@/components/main/SettingsDialog'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import {
+  Command,
+  CommandEmpty,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import { Settings, Check, ChevronsUpDown, X } from 'lucide-react'
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -24,39 +40,64 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
-function FilterPills({
+function MultiSelectCombobox({
   label,
+  placeholder,
   items,
   selected,
   onToggle,
 }: {
   label: string
+  placeholder: string
   items: { id: number; name: string }[]
   selected: number[]
   onToggle: (id: number) => void
 }) {
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
   if (items.length === 0) return null
+  const selectedItems = items.filter((i) => selected.includes(i.id))
   return (
-    <div className="space-y-1">
+    <div className="space-y-1.5">
       <span className="text-xs text-muted-foreground">{label}</span>
-      <div className="flex flex-wrap gap-1.5">
-        {items.map((item) => {
-          const active = selected.includes(item.id)
-          return (
-            <button
-              key={item.id}
-              onClick={() => onToggle(item.id)}
-              className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
-                active
-                  ? 'bg-gray-800 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button variant="outline" role="combobox" aria-expanded={open} className="justify-between font-normal w-full">
+            <span className="truncate text-sm">
+              {selected.length === 0 ? placeholder : `${selected.length} selected`}
+            </span>
+            <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+          <Command shouldFilter={false}>
+            <CommandInput placeholder="Search..." value={search} onValueChange={setSearch} />
+            <CommandList>
+              {items
+                .filter((i) => !search.trim() || i.name.toLowerCase().includes(search.trim().toLowerCase()))
+                .map((item) => (
+                  <CommandItem key={item.id} value={item.name} onSelect={() => onToggle(item.id)}>
+                    <Check className={`mr-2 h-4 w-4 shrink-0 ${selected.includes(item.id) ? 'opacity-100' : 'opacity-0'}`} />
+                    {item.name}
+                  </CommandItem>
+                ))}
+              {items.length > 0 && items.every((i) => !i.name.toLowerCase().includes((search.trim() || '').toLowerCase())) && (
+                <CommandEmpty>No matches</CommandEmpty>
+              )}
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+      {selectedItems.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {selectedItems.map((item) => (
+            <Badge key={item.id} variant="default" className="cursor-pointer select-none text-xs">
               {item.name}
-            </button>
-          )
-        })}
-      </div>
+              <X className="h-3 w-3 ml-1" onClick={() => onToggle(item.id)} />
+            </Badge>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -67,6 +108,7 @@ export function StatisticsPage() {
   const [refreshKey, setRefreshKey] = useState(0)
   const [selectedSpendingTypes, setSelectedSpendingTypes] = useState<number[]>([])
   const [selectedTags, setSelectedTags] = useState<number[]>([])
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   const spendingTypes = useSpendingTypesStore((s) => s.items)
   const tags = useTagsStore((s) => s.items)
@@ -127,8 +169,11 @@ export function StatisticsPage() {
   if (!ratesReady || !data) {
     return (
       <div className="h-full flex flex-col">
-        <header className="shrink-0 border-b border-gray-200 bg-white px-4 py-3">
+        <header className="shrink-0 border-b border-gray-200 bg-white px-4 py-3 flex items-center justify-between">
           <h1 className="text-xl font-bold">Statistics</h1>
+          <Button variant="ghost" size="icon" onClick={() => setSettingsOpen(true)}>
+            <Settings className="h-5 w-5" />
+          </Button>
         </header>
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {dateRangeSelector}
@@ -136,14 +181,18 @@ export function StatisticsPage() {
             {!ratesReady ? 'Loading exchange rates...' : preset === 'custom' ? 'Select a date range.' : 'Loading...'}
           </p>
         </div>
+        <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       </div>
     )
   }
 
   return (
     <div className="h-full flex flex-col">
-      <header className="shrink-0 border-b border-gray-200 bg-white px-4 py-3">
+      <header className="shrink-0 border-b border-gray-200 bg-white px-4 py-3 flex items-center justify-between">
         <h1 className="text-xl font-bold">Statistics</h1>
+        <Button variant="ghost" size="icon" onClick={() => setSettingsOpen(true)}>
+          <Settings className="h-5 w-5" />
+        </Button>
       </header>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
@@ -164,14 +213,16 @@ export function StatisticsPage() {
 
       <Section title="Expense Breakdown">
         <div className="space-y-3 mb-2">
-          <FilterPills
+          <MultiSelectCombobox
             label="Spending Types"
+            placeholder="All spending types"
             items={spendingTypes}
             selected={selectedSpendingTypes}
             onToggle={toggleSpendingType}
           />
-          <FilterPills
+          <MultiSelectCombobox
             label="Tags"
+            placeholder="All tags"
             items={tags}
             selected={selectedTags}
             onToggle={toggleTag}
@@ -193,9 +244,10 @@ export function StatisticsPage() {
       </Section>
 
       <Section title="Currency Breakdown">
-        <CurrencyBreakdown data={data.currencyHoldings} />
+        <CurrencyBreakdown data={data.currencyHoldings} displayCurrency={data.displayCurrency} />
       </Section>
       </div>
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </div>
   )
 }

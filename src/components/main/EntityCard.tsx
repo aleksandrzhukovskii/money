@@ -28,9 +28,9 @@ function progressColor(ratio: number): string {
 }
 
 const sizeStyles = {
-  small:  { pad: 'p-1.5', name: 'text-sm font-medium truncate', badgeMt: 'mt-0.5', amtCls: 'text-[11px] mt-0.5', subCls: 'text-[10px] mt-0.5' },
-  medium: { pad: 'p-2',   name: 'font-medium truncate',         badgeMt: 'mt-0.5', amtCls: 'text-sm mt-0.5',     subCls: 'text-xs mt-0.5' },
-  large:  { pad: 'p-3',   name: 'font-medium truncate',         badgeMt: 'mt-1',   amtCls: 'text-sm mt-1',       subCls: 'text-xs mt-1' },
+  small:  { pad: 'p-1',   gap: 'mt-0.5' },
+  medium: { pad: 'p-1.5', gap: 'mt-0.5' },
+  large:  { pad: 'p-3',   gap: 'mt-1' },
 } as const
 
 export function EntityCard({ name, currency, balance, earned, expectedAmount, spent, progress, isDragging, hidden, onClick }: EntityCardProps) {
@@ -53,15 +53,15 @@ export function EntityCard({ name, currency, balance, earned, expectedAmount, sp
       onClick={onClick}
     >
       <CardContent className={s.pad}>
-        <p className={s.name}>{name}</p>
-        <Badge variant="secondary" className={s.badgeMt}>{currency}</Badge>
+        <p className="font-medium truncate">{name}</p>
+        <Badge variant="secondary" className={s.gap}>{currency}</Badge>
         {balance !== undefined && (
-          <p className={`${s.amtCls} font-medium ${balance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+          <p className={`text-sm font-medium ${s.gap} ${balance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
             {fmt(balance, currency)}
           </p>
         )}
         {earned !== undefined && (
-          <p className={`${s.subCls} text-gray-600`}>
+          <p className={`text-xs ${s.gap} text-gray-600`}>
             {fmtSmall(earned, currency)}
             {expectedAmount !== undefined && expectedAmount > 0 && (
               <> / {fmtSmall(expectedAmount, currency)}</>
@@ -69,7 +69,7 @@ export function EntityCard({ name, currency, balance, earned, expectedAmount, sp
           </p>
         )}
         {spent !== undefined && spent > 0 && (
-          <p className={`${s.subCls} font-medium text-red-600`}>
+          <p className={`text-xs font-medium ${s.gap} text-red-600`}>
             {fmtSmall(spent, currency)}
           </p>
         )}

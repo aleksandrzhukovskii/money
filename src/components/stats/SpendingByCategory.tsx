@@ -28,8 +28,7 @@ export function SpendingByCategory({ data }: SpendingByCategoryProps) {
     },
     legend: {
       bottom: 0,
-      type: 'scroll' as const,
-      pageButtonPosition: 'both' as const,
+      left: 'center',
       tooltip: {
         show: true,
         formatter: (params: { name: string }) => {
@@ -63,5 +62,6 @@ export function SpendingByCategory({ data }: SpendingByCategoryProps) {
     ],
   }
 
-  return <ReactECharts option={option} style={{ height: 300 }} />
+  const legendRows = Math.ceil(data.length / 3)
+  return <ReactECharts option={option} style={{ height: 280 + legendRows * 22 }} />
 }

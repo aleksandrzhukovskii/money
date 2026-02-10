@@ -121,7 +121,7 @@ export function useStatistics(refreshKey = 0) {
       currentSummary: getPeriodSummary(db, dateFrom, dateTo, dc),
       previousSummary: getPeriodSummary(db, prev.dateFrom, prev.dateTo, dc),
       tagDistribution: getTagDistribution(db, dateFrom, dateTo, dc),
-      currencyHoldings: getCurrencyHoldings(db),
+      currencyHoldings: getCurrencyHoldings(db, dc),
       budgetBalanceTrend: getBudgetBalanceTrend(db, dateFrom, dateTo, dc),
       displayCurrency: dc,
       dateFrom,
