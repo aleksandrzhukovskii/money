@@ -15,7 +15,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog'
-import { Trash2 } from 'lucide-react'
+import { Settings, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatCentsShort } from '@/lib/format'
 import type { TransactionWithDetails } from '@/types/database'
@@ -27,6 +27,7 @@ interface TransactionHistoryDialogProps {
   entityId: number
   entityName: string
   currency: string
+  onEdit?: () => void
 }
 
 function formatAmount(cents: number, currency: string): string {
@@ -47,6 +48,7 @@ export function TransactionHistoryDialog({
   entityId,
   entityName,
   currency,
+  onEdit,
 }: TransactionHistoryDialogProps) {
   const { db, persistDebounced } = useDatabase()
   const compact = useAppStore(s => s.compactAmounts)
@@ -140,8 +142,17 @@ export function TransactionHistoryDialog({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{entityName}</DialogTitle>
-            <DialogDescription>Transaction history</DialogDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle>{entityName}</DialogTitle>
+                <DialogDescription>Transaction history</DialogDescription>
+              </div>
+              {onEdit && (
+                <Button variant="ghost" size="icon" onClick={onEdit}>
+                  <Settings className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
           </DialogHeader>
 
           <div className="overflow-y-auto max-h-[60vh] -mx-2">

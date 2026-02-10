@@ -51,9 +51,12 @@ export function EntityCard({ name, currency, balance, earned, expectedAmount, sp
             {fmt(balance, currency)}
           </p>
         )}
-        {expectedAmount !== undefined && expectedAmount > 0 && (
+        {earned !== undefined && (
           <p className="text-xs mt-1 text-gray-600">
-            {fmtSmall(earned ?? 0, currency)} / {fmtSmall(expectedAmount, currency)}
+            {fmtSmall(earned, currency)}
+            {expectedAmount !== undefined && expectedAmount > 0 && (
+              <> / {fmtSmall(expectedAmount, currency)}</>
+            )}
           </p>
         )}
         {spent !== undefined && spent > 0 && (

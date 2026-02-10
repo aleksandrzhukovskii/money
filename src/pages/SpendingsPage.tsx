@@ -5,6 +5,7 @@ import { EntityCard } from '@/components/main/EntityCard'
 import { AddCard } from '@/components/main/AddCard'
 import { FilterInput } from '@/components/main/FilterInput'
 import { AddSpendingTypeDialog } from '@/components/main/AddSpendingTypeDialog'
+import { TransactionHistoryDialog } from '@/components/main/TransactionHistoryDialog'
 import { SettingsDialog } from '@/components/main/SettingsDialog'
 import { matchesFilter } from '@/lib/filter'
 import { Button } from '@/components/ui/button'
@@ -18,6 +19,8 @@ export function SpendingsPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<SpendingType | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [historyEntity, setHistoryEntity] = useState<SpendingType | null>(null)
 
   useEffect(() => {
     if (db) load(db)
@@ -43,7 +46,7 @@ export function SpendingsPage() {
               name={item.name}
               currency={item.currency}
               spent={monthlySpent[item.id] ?? 0}
-              onClick={() => { setEditing(item); setDialogOpen(true) }}
+              onClick={() => { setHistoryEntity(item); setHistoryOpen(true) }}
             />
           ))}
           <AddCard label="Add Spending" onClick={() => { setEditing(null); setDialogOpen(true) }} />
@@ -52,6 +55,22 @@ export function SpendingsPage() {
 
       <AddSpendingTypeDialog open={dialogOpen} onOpenChange={setDialogOpen} editing={editing} />
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+
+      {historyEntity && (
+        <TransactionHistoryDialog
+          open={historyOpen}
+          onOpenChange={setHistoryOpen}
+          entityType="spending_type"
+          entityId={historyEntity.id}
+          entityName={historyEntity.name}
+          currency={historyEntity.currency}
+          onEdit={() => {
+            setHistoryOpen(false)
+            setEditing(historyEntity)
+            setDialogOpen(true)
+          }}
+        />
+      )}
     </div>
   )
 }

@@ -1,11 +1,12 @@
 import { NavLink } from 'react-router-dom'
-import { Home, TrendingUp, Wallet, ShoppingCart, BarChart3, type LucideIcon } from 'lucide-react'
+import { Home, TrendingUp, Wallet, ShoppingCart, History, BarChart3, type LucideIcon } from 'lucide-react'
 
 const navItems: { to: string; label: string; icon: LucideIcon }[] = [
   { to: '/', label: 'Home', icon: Home },
-  { to: '/incomes', label: 'Incomes', icon: TrendingUp },
-  { to: '/budgets', label: 'Budgets', icon: Wallet },
+  { to: '/incomes', label: 'Earn', icon: TrendingUp },
+  { to: '/budgets', label: 'Budget', icon: Wallet },
   { to: '/spendings', label: 'Spend', icon: ShoppingCart },
+  { to: '/history', label: 'Log', icon: History },
   { to: '/statistics', label: 'Stats', icon: BarChart3 },
 ]
 

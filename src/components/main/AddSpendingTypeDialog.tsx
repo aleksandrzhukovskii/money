@@ -3,7 +3,6 @@ import { useDatabase } from '@/hooks/useDatabase'
 import { useSpendingTypesStore } from '@/stores/spendingTypes'
 import { CurrencySelect } from '@/components/CurrencySelect'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
-import { TransactionHistoryDialog } from './TransactionHistoryDialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -29,7 +28,6 @@ export function AddSpendingTypeDialog({ open, onOpenChange, editing }: AddSpendi
   const [name, setName] = useState('')
   const [currency, setCurrency] = useState('')
   const [deleteOpen, setDeleteOpen] = useState(false)
-  const [historyOpen, setHistoryOpen] = useState(false)
 
   useEffect(() => {
     if (open) {
@@ -87,14 +85,9 @@ export function AddSpendingTypeDialog({ open, onOpenChange, editing }: AddSpendi
           </div>
           <DialogFooter>
             {editing && (
-              <div className="mr-auto flex gap-2">
-                <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
-                  Delete
-                </Button>
-                <Button variant="outline" onClick={() => setHistoryOpen(true)}>
-                  History
-                </Button>
-              </div>
+              <Button variant="destructive" onClick={() => setDeleteOpen(true)} className="mr-auto">
+                Delete
+              </Button>
             )}
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
             <Button onClick={handleSave} disabled={!name.trim() || !currency || nameTaken}>
@@ -112,17 +105,6 @@ export function AddSpendingTypeDialog({ open, onOpenChange, editing }: AddSpendi
         onConfirm={handleDelete}
         confirmLabel="Delete"
       />
-
-      {editing && (
-        <TransactionHistoryDialog
-          open={historyOpen}
-          onOpenChange={setHistoryOpen}
-          entityType="spending_type"
-          entityId={editing.id}
-          entityName={editing.name}
-          currency={editing.currency}
-        />
-      )}
     </>
   )
 }

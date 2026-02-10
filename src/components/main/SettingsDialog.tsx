@@ -32,6 +32,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
   const [displayCurrency, setDisplayCurrency] = useState('')
   const compactAmounts = useAppStore(s => s.compactAmounts)
+  const toastPosition = useAppStore(s => s.toastPosition)
 
   useEffect(() => {
     if (open && db) {
@@ -113,6 +114,22 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             </label>
             <p className="text-xs text-muted-foreground mt-1">
               Shorten large numbers (e.g. 23k, 1.5m) on cards and in history.
+            </p>
+          </div>
+
+          {/* Toast Position */}
+          <div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={toastPosition === 'bottom-center'}
+                onChange={(e) => useAppStore.getState().setToastPosition(e.target.checked ? 'bottom-center' : 'top-center')}
+                className="h-4 w-4 rounded border-gray-300 accent-emerald-600"
+              />
+              <span className="text-sm font-medium">Toast at Bottom</span>
+            </label>
+            <p className="text-xs text-muted-foreground mt-1">
+              Show notifications at the bottom of the screen instead of the top.
             </p>
           </div>
 

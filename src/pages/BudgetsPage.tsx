@@ -5,6 +5,7 @@ import { EntityCard } from '@/components/main/EntityCard'
 import { AddCard } from '@/components/main/AddCard'
 import { FilterInput } from '@/components/main/FilterInput'
 import { AddBudgetDialog } from '@/components/main/AddBudgetDialog'
+import { TransactionHistoryDialog } from '@/components/main/TransactionHistoryDialog'
 import { SettingsDialog } from '@/components/main/SettingsDialog'
 import { matchesFilter } from '@/lib/filter'
 import { Button } from '@/components/ui/button'
@@ -18,6 +19,8 @@ export function BudgetsPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<Budget | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [historyEntity, setHistoryEntity] = useState<BudgetWithBalance | null>(null)
 
   useEffect(() => {
     if (db) load(db)
@@ -43,7 +46,7 @@ export function BudgetsPage() {
               name={budget.name}
               currency={budget.currency}
               balance={budget.current_balance}
-              onClick={() => { setEditing(budget); setDialogOpen(true) }}
+              onClick={() => { setHistoryEntity(budget); setHistoryOpen(true) }}
             />
           ))}
           <AddCard label="Add Budget" onClick={() => { setEditing(null); setDialogOpen(true) }} />
@@ -52,6 +55,22 @@ export function BudgetsPage() {
 
       <AddBudgetDialog open={dialogOpen} onOpenChange={setDialogOpen} editing={editing} />
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+
+      {historyEntity && (
+        <TransactionHistoryDialog
+          open={historyOpen}
+          onOpenChange={setHistoryOpen}
+          entityType="budget"
+          entityId={historyEntity.id}
+          entityName={historyEntity.name}
+          currency={historyEntity.currency}
+          onEdit={() => {
+            setHistoryOpen(false)
+            setEditing(historyEntity)
+            setDialogOpen(true)
+          }}
+        />
+      )}
     </div>
   )
 }

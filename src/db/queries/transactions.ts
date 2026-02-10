@@ -6,6 +6,7 @@ export interface TransactionFilters {
   dateFrom?: string
   dateTo?: string
   tagIds?: number[]
+  commentSearch?: string
   limit?: number
   offset?: number
 }
@@ -29,6 +30,10 @@ export function getTransactions(db: Database, filters: TransactionFilters = {}):
   if (filters.tagIds && filters.tagIds.length > 0) {
     conditions.push(`t.id IN (SELECT transaction_id FROM transaction_tags WHERE tag_id IN (${filters.tagIds.map(() => '?').join(',')}))`)
     params.push(...filters.tagIds)
+  }
+  if (filters.commentSearch) {
+    conditions.push('LOWER(t.comment) LIKE ?')
+    params.push(`%${filters.commentSearch.toLowerCase()}%`)
   }
 
   const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''

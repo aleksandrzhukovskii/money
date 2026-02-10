@@ -67,7 +67,7 @@ export function TagPicker({ selectedTagIds, onChange }: TagPickerProps) {
             onChange={(e) => setNewTagName(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Tag name"
-            className="h-7 w-28 text-sm"
+            className="h-7 w-28 text-base"
           />
           <Button size="sm" variant="ghost" className="h-7 px-2" onClick={handleAddTag} disabled={!newTagName.trim()}>
             Add

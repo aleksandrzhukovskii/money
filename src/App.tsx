@@ -9,6 +9,7 @@ import { MainPage } from '@/pages/MainPage'
 import { IncomesPage } from '@/pages/IncomesPage'
 import { BudgetsPage } from '@/pages/BudgetsPage'
 import { SpendingsPage } from '@/pages/SpendingsPage'
+import { HistoryPage } from '@/pages/HistoryPage'
 import { StatisticsPage } from '@/pages/StatisticsPage'
 import { Button } from '@/components/ui/button'
 
@@ -149,6 +150,7 @@ export function App() {
         <Route path="/incomes" element={<IncomesPage />} />
         <Route path="/budgets" element={<BudgetsPage />} />
         <Route path="/spendings" element={<SpendingsPage />} />
+        <Route path="/history" element={<HistoryPage />} />
         <Route path="/statistics" element={<StatisticsPage />} />
       </Route>
     </Routes>
