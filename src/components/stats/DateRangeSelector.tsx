@@ -36,7 +36,7 @@ export function DateRangeSelector({
   onCustomToChange,
 }: DateRangeSelectorProps) {
   return (
-    <div className="flex flex-col items-end gap-2">
+    <div className="flex flex-col items-start gap-2">
       <Select value={preset} onValueChange={(v) => onPresetChange(v as DateRangePreset)}>
         <SelectTrigger className="w-[160px]">
           <SelectValue />

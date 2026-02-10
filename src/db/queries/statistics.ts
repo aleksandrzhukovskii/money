@@ -41,19 +41,28 @@ export interface BalancePoint {
   total: number
 }
 
-export function getSpendingByCategory(db: Database, dateFrom: string, dateTo: string): CategorySpending[] {
+// SQL expression: convert a transaction's amount to display currency.
+// Uses the exchange rate closest to the transaction date.
+// Uses 3 parameter slots (dc, dc, dc).
+const TX_TO_DC = `CASE
+  WHEN t.source_currency = ? THEN t.amount
+  WHEN t.destination_currency = ? THEN t.converted_amount
+  ELSE t.amount * COALESCE(
+    (SELECT er.rate FROM exchange_rates er
+     WHERE er.base_currency = t.source_currency AND er.target_currency = ?
+     ORDER BY ABS(julianday(er.date) - julianday(t.date)) LIMIT 1), 1)
+END`
+
+export function getSpendingByCategory(db: Database, dateFrom: string, dateTo: string, dc: string): CategorySpending[] {
   const result = db.exec(
     `SELECT st.name, st.color, st.icon,
-       SUM(CASE
-         WHEN t.destination_currency IS NOT NULL THEN t.converted_amount
-         ELSE t.amount
-       END) as total
+       SUM(${TX_TO_DC}) as total
      FROM transactions t
      JOIN spending_types st ON t.destination_spending_type_id = st.id
      WHERE t.type = 'spending' AND t.date BETWEEN ? AND ?
      GROUP BY st.id
      ORDER BY total DESC`,
-    [dateFrom, dateTo],
+    [dc, dc, dc, dateFrom, dateTo],
   )
   if (result.length === 0) return []
   return result[0]!.values.map((row) => ({
@@ -64,15 +73,16 @@ export function getSpendingByCategory(db: Database, dateFrom: string, dateTo: st
   }))
 }
 
-export function getMonthlyTotals(db: Database, dateFrom: string, dateTo: string): MonthlyTotal[] {
+export function getMonthlyTotals(db: Database, dateFrom: string, dateTo: string, dc: string): MonthlyTotal[] {
   const result = db.exec(
-    `SELECT strftime('%Y-%m', t.date) as month, t.type, SUM(t.amount) as total
+    `SELECT strftime('%Y-%m', t.date) as month, t.type,
+       SUM(${TX_TO_DC}) as total
      FROM transactions t
      WHERE t.type IN ('earning', 'spending')
        AND t.date BETWEEN ? AND ?
      GROUP BY month, t.type
      ORDER BY month`,
-    [dateFrom, dateTo],
+    [dc, dc, dc, dateFrom, dateTo],
   )
   if (result.length === 0) return []
   return result[0]!.values.map((row) => ({
@@ -82,15 +92,15 @@ export function getMonthlyTotals(db: Database, dateFrom: string, dateTo: string)
   }))
 }
 
-export function getPeriodSummary(db: Database, dateFrom: string, dateTo: string): PeriodSummary {
+export function getPeriodSummary(db: Database, dateFrom: string, dateTo: string, dc: string): PeriodSummary {
   const result = db.exec(
     `SELECT
-       COALESCE(SUM(CASE WHEN type = 'earning' THEN amount ELSE 0 END), 0) as total_income,
-       COALESCE(SUM(CASE WHEN type = 'spending' THEN amount ELSE 0 END), 0) as total_expense,
+       COALESCE(SUM(CASE WHEN t.type = 'earning' THEN ${TX_TO_DC} ELSE 0 END), 0) as total_income,
+       COALESCE(SUM(CASE WHEN t.type = 'spending' THEN ${TX_TO_DC} ELSE 0 END), 0) as total_expense,
        COUNT(*) as tx_count
-     FROM transactions
-     WHERE date BETWEEN ? AND ?`,
-    [dateFrom, dateTo],
+     FROM transactions t
+     WHERE t.date BETWEEN ? AND ?`,
+    [dc, dc, dc, dc, dc, dc, dateFrom, dateTo],
   )
   if (result.length === 0 || result[0]!.values.length === 0) {
     return { total_income: 0, total_expense: 0, tx_count: 0 }
@@ -103,14 +113,15 @@ export function getPeriodSummary(db: Database, dateFrom: string, dateTo: string)
   }
 }
 
-export function getDailySpending(db: Database, dateFrom: string, dateTo: string): DailyTotal[] {
+export function getDailySpending(db: Database, dateFrom: string, dateTo: string, dc: string): DailyTotal[] {
   const result = db.exec(
-    `SELECT date, SUM(amount) as total
-     FROM transactions
-     WHERE type = 'spending' AND date BETWEEN ? AND ?
-     GROUP BY date
-     ORDER BY date`,
-    [dateFrom, dateTo],
+    `SELECT t.date,
+       SUM(${TX_TO_DC}) as total
+     FROM transactions t
+     WHERE t.type = 'spending' AND t.date BETWEEN ? AND ?
+     GROUP BY t.date
+     ORDER BY t.date`,
+    [dc, dc, dc, dateFrom, dateTo],
   )
   if (result.length === 0) return []
   return result[0]!.values.map((row) => ({
@@ -119,16 +130,17 @@ export function getDailySpending(db: Database, dateFrom: string, dateTo: string)
   }))
 }
 
-export function getTagDistribution(db: Database, dateFrom: string, dateTo: string): TagTotal[] {
+export function getTagDistribution(db: Database, dateFrom: string, dateTo: string, dc: string): TagTotal[] {
   const result = db.exec(
-    `SELECT tg.name, tg.color, SUM(t.amount) as total, COUNT(*) as count
+    `SELECT tg.name, tg.color,
+       SUM(${TX_TO_DC}) as total, COUNT(*) as count
      FROM transaction_tags tt
      JOIN transactions t ON tt.transaction_id = t.id
      JOIN tags tg ON tt.tag_id = tg.id
      WHERE t.date BETWEEN ? AND ?
      GROUP BY tg.id
      ORDER BY total DESC`,
-    [dateFrom, dateTo],
+    [dc, dc, dc, dateFrom, dateTo],
   )
   if (result.length === 0) return []
   return result[0]!.values.map((row) => ({
@@ -139,25 +151,31 @@ export function getTagDistribution(db: Database, dateFrom: string, dateTo: strin
   }))
 }
 
-export function getBudgetBalanceTrend(db: Database, dateFrom: string, dateTo: string): BalancePoint[] {
-  // Base: sum of all active budgets' initial balances
+export function getBudgetBalanceTrend(db: Database, dateFrom: string, dateTo: string, dc: string): BalancePoint[] {
+  // Base: sum of all active budgets' initial balances, converted to display currency
   const baseResult = db.exec(
-    `SELECT COALESCE(SUM(initial_balance), 0) FROM budgets WHERE is_active = 1`,
+    `SELECT COALESCE(SUM(
+       CASE WHEN b.currency = ? THEN b.initial_balance
+       ELSE b.initial_balance * COALESCE(
+         (SELECT er.rate FROM exchange_rates er
+          WHERE er.base_currency = b.currency AND er.target_currency = ?
+          ORDER BY er.date DESC LIMIT 1), 1)
+       END
+     ), 0) FROM budgets b WHERE b.is_active = 1`,
+    [dc, dc],
   )
   const base = baseResult.length > 0 ? (baseResult[0]!.values[0]![0] as number) : 0
 
-  // Monthly net changes from the beginning of time up through dateTo
+  // Monthly net changes, converted to display currency
   const result = db.exec(
-    `SELECT strftime('%Y-%m', date) as month,
-       SUM(CASE WHEN destination_budget_id IS NOT NULL THEN
-         CASE WHEN destination_currency IS NOT NULL THEN converted_amount ELSE amount END
-       ELSE 0 END)
-       - SUM(CASE WHEN source_budget_id IS NOT NULL THEN amount ELSE 0 END) as net_change
-     FROM transactions
-     WHERE date <= ?
+    `SELECT strftime('%Y-%m', t.date) as month,
+       SUM(CASE WHEN t.destination_budget_id IS NOT NULL THEN ${TX_TO_DC} ELSE 0 END)
+       - SUM(CASE WHEN t.source_budget_id IS NOT NULL THEN ${TX_TO_DC} ELSE 0 END) as net_change
+     FROM transactions t
+     WHERE t.date <= ?
      GROUP BY month
      ORDER BY month`,
-    [dateTo],
+    [dc, dc, dc, dc, dc, dc, dateTo],
   )
 
   if (result.length === 0) return [{ month: dateFrom.slice(0, 7), total: base }]

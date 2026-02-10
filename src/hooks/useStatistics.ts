@@ -113,16 +113,17 @@ export function useStatistics() {
     }
 
     const prev = getPreviousPeriodBounds(preset)
+    const dc = getSetting(db, 'display_currency') ?? 'USD'
 
     return {
-      spendingByCategory: getSpendingByCategory(db, dateFrom, dateTo),
-      monthlyTotals: getMonthlyTotals(db, dateFrom, dateTo),
-      currentSummary: getPeriodSummary(db, dateFrom, dateTo),
-      previousSummary: getPeriodSummary(db, prev.dateFrom, prev.dateTo),
-      tagDistribution: getTagDistribution(db, dateFrom, dateTo),
+      spendingByCategory: getSpendingByCategory(db, dateFrom, dateTo, dc),
+      monthlyTotals: getMonthlyTotals(db, dateFrom, dateTo, dc),
+      currentSummary: getPeriodSummary(db, dateFrom, dateTo, dc),
+      previousSummary: getPeriodSummary(db, prev.dateFrom, prev.dateTo, dc),
+      tagDistribution: getTagDistribution(db, dateFrom, dateTo, dc),
       currencyHoldings: getCurrencyHoldings(db),
-      budgetBalanceTrend: getBudgetBalanceTrend(db, dateFrom, dateTo),
-      displayCurrency: getSetting(db, 'display_currency') ?? 'USD',
+      budgetBalanceTrend: getBudgetBalanceTrend(db, dateFrom, dateTo, dc),
+      displayCurrency: dc,
       dateFrom,
       dateTo,
     }

@@ -20,23 +20,27 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export function StatisticsPage() {
   const { data, preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo } = useStatistics()
 
+  const dateRangeSelector = (
+    <DateRangeSelector
+      preset={preset}
+      onPresetChange={setPreset}
+      customFrom={customFrom}
+      customTo={customTo}
+      onCustomFromChange={setCustomFrom}
+      onCustomToChange={setCustomTo}
+    />
+  )
+
   if (!data) {
     return (
       <div className="h-full flex flex-col">
-        <header className="shrink-0 border-b border-gray-200 bg-white px-4 py-3 flex items-center justify-between">
+        <header className="shrink-0 border-b border-gray-200 bg-white px-4 py-3">
           <h1 className="text-xl font-bold">Statistics</h1>
-          <DateRangeSelector
-            preset={preset}
-            onPresetChange={setPreset}
-            customFrom={customFrom}
-            customTo={customTo}
-            onCustomFromChange={setCustomFrom}
-            onCustomToChange={setCustomTo}
-          />
         </header>
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {dateRangeSelector}
           <p className="text-muted-foreground">
-            {preset === 'custom' ? 'Select a date range above.' : 'Loading...'}
+            {preset === 'custom' ? 'Select a date range.' : 'Loading...'}
           </p>
         </div>
       </div>
@@ -45,19 +49,12 @@ export function StatisticsPage() {
 
   return (
     <div className="h-full flex flex-col">
-      <header className="shrink-0 border-b border-gray-200 bg-white px-4 py-3 flex items-center justify-between">
+      <header className="shrink-0 border-b border-gray-200 bg-white px-4 py-3">
         <h1 className="text-xl font-bold">Statistics</h1>
-        <DateRangeSelector
-          preset={preset}
-          onPresetChange={setPreset}
-          customFrom={customFrom}
-          customTo={customTo}
-          onCustomFromChange={setCustomFrom}
-          onCustomToChange={setCustomTo}
-        />
       </header>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
+      {dateRangeSelector}
       <SummaryCards
         current={data.currentSummary}
         previous={data.previousSummary}
