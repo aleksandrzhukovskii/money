@@ -116,15 +116,15 @@ export function HistoryPage() {
   }
 
   return (
-    <div className="h-full overflow-y-auto">
-      <header className="sticky top-0 z-10 border-b border-gray-200 bg-white px-4 py-3 flex items-center justify-between">
+    <div className="h-full flex flex-col">
+      <header className="shrink-0 border-b border-gray-200 bg-white px-4 py-3 flex items-center justify-between">
         <h1 className="text-xl font-bold">History</h1>
         <Button variant="ghost" size="icon" onClick={() => setSettingsOpen(true)}>
           <Settings className="h-5 w-5" />
         </Button>
       </header>
 
-      <div className="p-4 space-y-3">
+      <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {/* Date filters */}
         <div className="flex gap-2 items-center">
           <Input

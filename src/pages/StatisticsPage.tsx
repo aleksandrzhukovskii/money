@@ -22,9 +22,9 @@ export function StatisticsPage() {
 
   if (!data) {
     return (
-      <div className="p-4 space-y-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Statistics</h1>
+      <div className="h-full flex flex-col">
+        <header className="shrink-0 border-b border-gray-200 bg-white px-4 py-3 flex items-center justify-between">
+          <h1 className="text-xl font-bold">Statistics</h1>
           <DateRangeSelector
             preset={preset}
             onPresetChange={setPreset}
@@ -33,18 +33,20 @@ export function StatisticsPage() {
             onCustomFromChange={setCustomFrom}
             onCustomToChange={setCustomTo}
           />
+        </header>
+        <div className="flex-1 overflow-y-auto p-4">
+          <p className="text-muted-foreground">
+            {preset === 'custom' ? 'Select a date range above.' : 'Loading...'}
+          </p>
         </div>
-        <p className="text-muted-foreground">
-          {preset === 'custom' ? 'Select a date range above.' : 'Loading...'}
-        </p>
       </div>
     )
   }
 
   return (
-    <div className="p-4 space-y-6 pb-24">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Statistics</h1>
+    <div className="h-full flex flex-col">
+      <header className="shrink-0 border-b border-gray-200 bg-white px-4 py-3 flex items-center justify-between">
+        <h1 className="text-xl font-bold">Statistics</h1>
         <DateRangeSelector
           preset={preset}
           onPresetChange={setPreset}
@@ -53,8 +55,9 @@ export function StatisticsPage() {
           onCustomFromChange={setCustomFrom}
           onCustomToChange={setCustomTo}
         />
-      </div>
+      </header>
 
+      <div className="flex-1 overflow-y-auto p-4 space-y-6">
       <SummaryCards
         current={data.currentSummary}
         previous={data.previousSummary}
@@ -84,6 +87,7 @@ export function StatisticsPage() {
       <Section title="Currency Breakdown">
         <CurrencyBreakdown data={data.currencyHoldings} />
       </Section>
+      </div>
     </div>
   )
 }

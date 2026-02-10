@@ -29,15 +29,15 @@ export function BudgetsPage() {
   const filtered = itemsWithBalances.filter(b => matchesFilter(b.name, filter))
 
   return (
-    <div className="h-full overflow-y-auto">
-      <header className="sticky top-0 z-10 border-b border-gray-200 bg-white px-4 py-3 flex items-center justify-between">
+    <div className="h-full flex flex-col">
+      <header className="shrink-0 border-b border-gray-200 bg-white px-4 py-3 flex items-center justify-between">
         <h1 className="text-xl font-bold">Budgets</h1>
         <Button variant="ghost" size="icon" onClick={() => setSettingsOpen(true)}>
           <Settings className="h-5 w-5" />
         </Button>
       </header>
 
-      <div className="p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
         <FilterInput value={filter} onChange={setFilter} />
         <div className="flex flex-wrap gap-3">
           {filtered.map((budget: BudgetWithBalance) => (
