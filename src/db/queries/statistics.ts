@@ -51,11 +51,11 @@ const TX_TO_DC = `CASE
   ELSE t.amount * COALESCE(
     (SELECT er.rate FROM exchange_rates er
      WHERE er.base_currency = t.source_currency AND er.target_currency = ?
-       AND er.date <= t.date
-     ORDER BY er.date DESC LIMIT 1),
+       AND er."date" <= t."date"
+     ORDER BY er."date" DESC LIMIT 1),
     (SELECT er.rate FROM exchange_rates er
      WHERE er.base_currency = t.source_currency AND er.target_currency = ?
-     ORDER BY er.date ASC LIMIT 1),
+     ORDER BY er."date" ASC LIMIT 1),
     1)
 END`
 
