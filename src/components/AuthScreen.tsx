@@ -176,7 +176,7 @@ export function AuthScreen() {
                 id="confirm-password"
                 name="confirm-password"
                 type="password"
-                autoComplete="new-password"
+                data-bwautofill
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="Confirm password"
@@ -199,7 +199,7 @@ export function AuthScreen() {
                 id="setup-token"
                 name="token"
                 type="password"
-                autoComplete="off"
+                data-bwautofill
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
                 placeholder="ghp_..."
