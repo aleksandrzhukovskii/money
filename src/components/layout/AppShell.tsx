@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Outlet } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { useAppStore } from '@/stores/app'
@@ -7,6 +8,16 @@ import { PWAUpdatePrompt } from './PWAUpdatePrompt'
 
 export function AppShell() {
   const toastPosition = useAppStore(s => s.toastPosition)
+
+  // Force iOS Safari to settle its toolbar/safe-area state on load
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      window.scrollTo(0, 1)
+      requestAnimationFrame(() => {
+        window.scrollTo(0, 0)
+      })
+    })
+  }, [])
 
   return (
     <div className="flex h-dvh w-full">
