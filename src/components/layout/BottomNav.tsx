@@ -14,7 +14,7 @@ export function BottomNav({ className = '' }: { className?: string }) {
   return (
     <nav
       className={`shrink-0 border-t border-gray-200 bg-white flex items-center justify-around px-1 pt-2 ${className}`}
-      style={{ paddingBottom: 'calc(var(--safe-area-bottom) + 1rem)' }}
+      style={{ paddingBottom: 'calc(var(--safe-area-bottom) + 3rem)' }}
     >
       {navItems.map((item) => (
         <NavLink
