@@ -89,7 +89,7 @@ function getPreviousPeriodBounds(preset: DateRangePreset): { dateFrom: string; d
   }
 }
 
-export function useStatistics() {
+export function useStatistics(refreshKey = 0) {
   const { db } = useDatabase()
   const [preset, setPreset] = useState<DateRangePreset>('this-month')
   const [customFrom, setCustomFrom] = useState('')
@@ -127,7 +127,8 @@ export function useStatistics() {
       dateFrom,
       dateTo,
     }
-  }, [db, preset, customFrom, customTo])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [db, preset, customFrom, customTo, refreshKey])
 
   return { data, preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo }
 }

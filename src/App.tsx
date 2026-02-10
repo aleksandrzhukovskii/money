@@ -5,6 +5,7 @@ import { useDatabase, isDirty, deleteLocalDatabase } from '@/hooks/useDatabase'
 import { useBackup } from '@/hooks/useBackup'
 import { useAuthStore } from '@/stores/auth'
 import { AuthScreen, clearCredentials } from '@/components/AuthScreen'
+import { refreshExchangeRates } from '@/lib/exchangeRateSync'
 import { MainPage } from '@/pages/MainPage'
 import { IncomesPage } from '@/pages/IncomesPage'
 import { BudgetsPage } from '@/pages/BudgetsPage'
@@ -16,7 +17,7 @@ import { Button } from '@/components/ui/button'
 type SyncPhase = 'pending' | 'syncing' | 'synced' | 'error'
 
 export function App() {
-  const { db, isReady, error } = useDatabase()
+  const { db, isReady, error, persistDebounced } = useDatabase()
   const { password } = useAuthStore()
   const isAuthenticated = !!password
   const backup = useBackup()
@@ -88,6 +89,12 @@ export function App() {
       window.removeEventListener('pagehide', handlePageHide)
     }
   }, [db, syncPhase])
+
+  // Fetch exchange rates after sync completes
+  useEffect(() => {
+    if (!db || syncPhase !== 'synced') return
+    refreshExchangeRates(db, persistDebounced).catch(() => {})
+  }, [db, syncPhase, persistDebounced])
 
   if (error) {
     return (

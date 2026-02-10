@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useDatabase } from './useDatabase'
-import { getExchangeRate, upsertExchangeRate } from '@/db/queries/exchangeRates'
+import { getExchangeRate, upsertExchangeRate, getActiveUserCurrencies } from '@/db/queries/exchangeRates'
 
 const CDN_BASE = 'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies'
 const FALLBACK_BASE = 'https://latest.currency-api.pages.dev/v1/currencies'
@@ -45,6 +45,22 @@ export function useExchangeRate(fromCurrency: string, toCurrency: string) {
           rate: fetchedRate,
           date: today,
         })
+        // Also save rates for all active currencies from this response
+        const activeCurrencies = getActiveUserCurrencies(db)
+        const ratesObj = data[from]
+        if (ratesObj) {
+          for (const cur of activeCurrencies) {
+            const lc = cur.toLowerCase()
+            if (lc !== from && ratesObj[lc] != null && ratesObj[lc] > 0) {
+              upsertExchangeRate(db, {
+                base_currency: fromCurrency,
+                target_currency: cur,
+                rate: ratesObj[lc],
+                date: today,
+              })
+            }
+          }
+        }
         persistDebounced()
       }
     } catch { /* fetch failed entirely */ }

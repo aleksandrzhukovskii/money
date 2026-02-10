@@ -42,9 +42,12 @@ export interface BalancePoint {
 }
 
 // SQL expression: convert a transaction's amount to display currency.
-// Uses the exchange rate closest to (but not after) the transaction date,
-// falling back to the nearest available rate if none exists before.
-// Uses 4 parameter slots (dc, dc, dc, dc).
+// 1. If source currency matches dc → use amount directly
+// 2. If destination currency matches dc → use converted_amount
+// 3. Direct exchange rate lookup (closest date on or before tx, then any date)
+// 4. Indirect conversion through USD: src→USD × USD→dc
+// 5. Fallback: 1 (no conversion)
+// Uses 5 parameter slots (dc, dc, dc, dc, dc).
 const TX_TO_DC = `CASE
   WHEN t.source_currency = ? THEN t.amount
   WHEN t.destination_currency = ? THEN t.converted_amount
@@ -56,8 +59,22 @@ const TX_TO_DC = `CASE
     (SELECT er.rate FROM exchange_rates er
      WHERE er.base_currency = t.source_currency AND er.target_currency = ?
      ORDER BY er."date" ASC LIMIT 1),
+    (SELECT
+      (SELECT er.rate FROM exchange_rates er
+       WHERE er.base_currency = t.source_currency AND er.target_currency = 'USD'
+       ORDER BY er."date" DESC LIMIT 1)
+      *
+      (SELECT er.rate FROM exchange_rates er
+       WHERE er.base_currency = 'USD' AND er.target_currency = ?
+       ORDER BY er."date" DESC LIMIT 1)
+    ),
     1)
 END`
+
+// Helper: repeat dc value for N usages of TX_TO_DC (5 params each)
+function dcParams(dc: string, txCount: number): string[] {
+  return Array(txCount * 5).fill(dc)
+}
 
 export function getSpendingByCategory(db: Database, dateFrom: string, dateTo: string, dc: string): CategorySpending[] {
   const result = db.exec(
@@ -68,7 +85,7 @@ export function getSpendingByCategory(db: Database, dateFrom: string, dateTo: st
      WHERE t.type = 'spending' AND t.date BETWEEN ? AND ?
      GROUP BY st.id
      ORDER BY total DESC`,
-    [dc, dc, dc, dc, dateFrom, dateTo],
+    [...dcParams(dc, 1), dateFrom, dateTo],
   )
   if (result.length === 0) return []
   return result[0]!.values.map((row) => ({
@@ -88,7 +105,7 @@ export function getMonthlyTotals(db: Database, dateFrom: string, dateTo: string,
        AND t.date BETWEEN ? AND ?
      GROUP BY month, t.type
      ORDER BY month`,
-    [dc, dc, dc, dc, dateFrom, dateTo],
+    [...dcParams(dc, 1), dateFrom, dateTo],
   )
   if (result.length === 0) return []
   return result[0]!.values.map((row) => ({
@@ -106,7 +123,7 @@ export function getPeriodSummary(db: Database, dateFrom: string, dateTo: string,
        COUNT(*) as tx_count
      FROM transactions t
      WHERE t.date BETWEEN ? AND ?`,
-    [dc, dc, dc, dc, dc, dc, dc, dc, dateFrom, dateTo],
+    [...dcParams(dc, 2), dateFrom, dateTo],
   )
   if (result.length === 0 || result[0]!.values.length === 0) {
     return { total_income: 0, total_expense: 0, tx_count: 0 }
@@ -127,7 +144,7 @@ export function getDailySpending(db: Database, dateFrom: string, dateTo: string,
      WHERE t.type = 'spending' AND t.date BETWEEN ? AND ?
      GROUP BY t.date
      ORDER BY t.date`,
-    [dc, dc, dc, dc, dateFrom, dateTo],
+    [...dcParams(dc, 1), dateFrom, dateTo],
   )
   if (result.length === 0) return []
   return result[0]!.values.map((row) => ({
@@ -146,7 +163,7 @@ export function getTagDistribution(db: Database, dateFrom: string, dateTo: strin
      WHERE t.date BETWEEN ? AND ?
      GROUP BY tg.id
      ORDER BY total DESC`,
-    [dc, dc, dc, dc, dateFrom, dateTo],
+    [...dcParams(dc, 1), dateFrom, dateTo],
   )
   if (result.length === 0) return []
   return result[0]!.values.map((row) => ({
@@ -159,16 +176,27 @@ export function getTagDistribution(db: Database, dateFrom: string, dateTo: strin
 
 export function getBudgetBalanceTrend(db: Database, dateFrom: string, dateTo: string, dc: string): BalancePoint[] {
   // Base: sum of all active budgets' initial balances, converted to display currency
+  // Also uses indirect USD conversion for budget currencies
   const baseResult = db.exec(
     `SELECT COALESCE(SUM(
        CASE WHEN b.currency = ? THEN b.initial_balance
        ELSE b.initial_balance * COALESCE(
          (SELECT er.rate FROM exchange_rates er
           WHERE er.base_currency = b.currency AND er.target_currency = ?
-          ORDER BY er.date DESC LIMIT 1), 1)
+          ORDER BY er."date" DESC LIMIT 1),
+         (SELECT
+           (SELECT er.rate FROM exchange_rates er
+            WHERE er.base_currency = b.currency AND er.target_currency = 'USD'
+            ORDER BY er."date" DESC LIMIT 1)
+           *
+           (SELECT er.rate FROM exchange_rates er
+            WHERE er.base_currency = 'USD' AND er.target_currency = ?
+            ORDER BY er."date" DESC LIMIT 1)
+         ),
+         1)
        END
      ), 0) FROM budgets b WHERE b.is_active = 1`,
-    [dc, dc],
+    [dc, dc, dc],
   )
   const base = baseResult.length > 0 ? (baseResult[0]!.values[0]![0] as number) : 0
 
@@ -181,7 +209,7 @@ export function getBudgetBalanceTrend(db: Database, dateFrom: string, dateTo: st
      WHERE t.date <= ?
      GROUP BY month
      ORDER BY month`,
-    [dc, dc, dc, dc, dc, dc, dc, dc, dateTo],
+    [...dcParams(dc, 2), dateTo],
   )
 
   if (result.length === 0) return [{ month: dateFrom.slice(0, 7), total: base }]

@@ -1,4 +1,7 @@
+import { useEffect, useState } from 'react'
 import { useStatistics } from '@/hooks/useStatistics'
+import { useDatabase } from '@/hooks/useDatabase'
+import { refreshExchangeRates } from '@/lib/exchangeRateSync'
 import { DateRangeSelector } from '@/components/stats/DateRangeSelector'
 import { SummaryCards } from '@/components/stats/SummaryCards'
 import { SpendingByCategory } from '@/components/stats/SpendingByCategory'
@@ -18,7 +21,26 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 export function StatisticsPage() {
-  const { data, preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo } = useStatistics()
+  const { db, persistDebounced } = useDatabase()
+  const [ratesReady, setRatesReady] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
+
+  // Ensure fresh exchange rates before computing stats
+  useEffect(() => {
+    if (!db) return
+    let cancelled = false
+    refreshExchangeRates(db, persistDebounced)
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) {
+          setRatesReady(true)
+          setRefreshKey((k) => k + 1)
+        }
+      })
+    return () => { cancelled = true }
+  }, [db, persistDebounced])
+
+  const { data, preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo } = useStatistics(refreshKey)
 
   const dateRangeSelector = (
     <DateRangeSelector
@@ -31,7 +53,7 @@ export function StatisticsPage() {
     />
   )
 
-  if (!data) {
+  if (!ratesReady || !data) {
     return (
       <div className="h-full flex flex-col">
         <header className="shrink-0 border-b border-gray-200 bg-white px-4 py-3">
@@ -40,7 +62,7 @@ export function StatisticsPage() {
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {dateRangeSelector}
           <p className="text-muted-foreground">
-            {preset === 'custom' ? 'Select a date range.' : 'Loading...'}
+            {!ratesReady ? 'Loading exchange rates...' : preset === 'custom' ? 'Select a date range.' : 'Loading...'}
           </p>
         </div>
       </div>
