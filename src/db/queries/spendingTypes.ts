@@ -58,6 +58,10 @@ export function deleteSpendingType(db: Database, id: number): void {
   db.run('UPDATE spending_types SET is_active = 0 WHERE id = ?', [id])
 }
 
+export function reorderSpendingTypes(db: Database, orderedIds: number[]): void {
+  orderedIds.forEach((id, i) => db.run('UPDATE spending_types SET sort_order = ? WHERE id = ?', [i, id]))
+}
+
 /** Merge source spending type into target: tag affected txs, reassign, deactivate source */
 export function mergeSpendingType(db: Database, sourceId: number, targetId: number): void {
   const source = getSpendingTypeById(db, sourceId)

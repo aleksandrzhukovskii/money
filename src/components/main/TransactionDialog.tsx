@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useDatabase } from '@/hooks/useDatabase'
 import { useExchangeRate } from '@/hooks/useExchangeRate'
 import { useIncomesStore } from '@/stores/incomes'
@@ -11,6 +11,13 @@ import { TagPicker } from './TagPicker'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   Dialog,
   DialogContent,
@@ -49,8 +56,11 @@ export function TransactionDialog({
   editing,
 }: TransactionDialogProps) {
   const { db, persistDebounced } = useDatabase()
+  const incomes = useIncomesStore((s) => s.items)
   const { load: loadIncomes } = useIncomesStore()
+  const budgets = useBudgetsStore((s) => s.items)
   const { load: loadBudgets } = useBudgetsStore()
+  const spendingTypes = useSpendingTypesStore((s) => s.items)
   const { load: loadSpendingTypes } = useSpendingTypesStore()
   const { load: loadTags } = useTagsStore()
 
@@ -60,12 +70,75 @@ export function TransactionDialog({
   const [date, setDate] = useState('')
   const [comment, setComment] = useState('')
   const [tagIds, setTagIds] = useState<number[]>([])
+  const [editSourceId, setEditSourceId] = useState<number | null>(null)
+  const [editDestId, setEditDestId] = useState<number | null>(null)
 
   const isEditing = !!editing
   const effType = editing?.type ?? type
-  const effSourceName = editing?.source_name ?? sourceName
+
+  // Get the current source/dest IDs (editable in edit mode)
+  function getSourceId(): number {
+    if (editing) {
+      if (editSourceId !== null) return editSourceId
+      if (effType === 'earning') return editing.source_income_id!
+      return editing.source_budget_id!
+    }
+    return sourceId
+  }
+
+  function getDestId(): number {
+    if (editing) {
+      if (editDestId !== null) return editDestId
+      if (effType === 'spending') return editing.destination_spending_type_id!
+      return editing.destination_budget_id!
+    }
+    return destinationId
+  }
+
+  // Source entity options for edit mode
+  const sourceOptions = useMemo(() => {
+    if (!editing) return []
+    const srcCurrency = editing.source_currency
+    if (effType === 'earning') {
+      return incomes.filter((i) => i.currency === srcCurrency)
+    }
+    // spending or transfer: source is budget
+    return budgets.filter((b) => b.currency === srcCurrency)
+  }, [editing, effType, incomes, budgets])
+
+  // Destination entity options for edit mode
+  const destOptions = useMemo(() => {
+    if (!editing) return []
+    const destCurrency = editing.destination_currency ?? editing.source_currency
+    if (effType === 'spending') {
+      return spendingTypes.filter((s) => s.currency === destCurrency)
+    }
+    // earning or transfer: destination is budget
+    return budgets.filter((b) => b.currency === destCurrency)
+  }, [editing, effType, spendingTypes, budgets])
+
+  // Derive names from current selection
+  const effSourceName = useMemo(() => {
+    if (editing) {
+      const sid = getSourceId()
+      const opt = sourceOptions.find((o) => o.id === sid)
+      return opt?.name ?? editing.source_name
+    }
+    return sourceName
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing, editSourceId, sourceOptions, sourceName])
+
+  const effDestName = useMemo(() => {
+    if (editing) {
+      const did = getDestId()
+      const opt = destOptions.find((o) => o.id === did)
+      return opt?.name ?? editing.destination_name
+    }
+    return destinationName
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing, editDestId, destOptions, destinationName])
+
   const effSourceCurrency = editing?.source_currency ?? sourceCurrency
-  const effDestName = editing?.destination_name ?? destinationName
   const effDestCurrency = editing
     ? (editing.destination_currency ?? editing.source_currency)
     : destinationCurrency
@@ -84,6 +157,17 @@ export function TransactionDialog({
         setRateLocked(false)
         setDate(editing.date)
         setComment(editing.comment || '')
+        // Initialize source/dest IDs
+        if (effType === 'earning') {
+          setEditSourceId(editing.source_income_id)
+          setEditDestId(editing.destination_budget_id)
+        } else if (effType === 'spending') {
+          setEditSourceId(editing.source_budget_id)
+          setEditDestId(editing.destination_spending_type_id)
+        } else {
+          setEditSourceId(editing.source_budget_id)
+          setEditDestId(editing.destination_budget_id)
+        }
         if (db) {
           const tagResult = db.exec('SELECT tag_id FROM transaction_tags WHERE transaction_id = ?', [editing.id])
           setTagIds(tagResult.length > 0 ? tagResult[0]!.values.map(r => r[0] as number) : [])
@@ -95,10 +179,12 @@ export function TransactionDialog({
         setDate(new Date().toISOString().slice(0, 10))
         setComment('')
         setTagIds([])
+        setEditSourceId(null)
+        setEditDestId(null)
       }
       if (db) loadTags(db)
     }
-  }, [open, db, loadTags, editing])
+  }, [open, db, loadTags, editing, effType])
 
   // Auto-calculate converted amount when locked
   useEffect(() => {
@@ -117,6 +203,18 @@ export function TransactionDialog({
       return c / a
     }
     return rate
+  }
+
+  function buildFkFields() {
+    const sid = getSourceId()
+    const did = getDestId()
+    if (effType === 'earning') {
+      return { source_income_id: sid, destination_budget_id: did }
+    } else if (effType === 'spending') {
+      return { source_budget_id: sid, destination_spending_type_id: did }
+    } else {
+      return { source_budget_id: sid, destination_budget_id: did }
+    }
   }
 
   function handleSave() {
@@ -144,10 +242,7 @@ export function TransactionDialog({
     if (editing) {
       updateTransaction(db, editing.id, {
         type: editing.type,
-        source_income_id: editing.source_income_id,
-        source_budget_id: editing.source_budget_id,
-        destination_budget_id: editing.destination_budget_id,
-        destination_spending_type_id: editing.destination_spending_type_id,
+        ...buildFkFields(),
         ...baseData,
       })
     } else if (effType === 'earning') {
@@ -200,6 +295,48 @@ export function TransactionDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-2">
+          {/* Source/Destination selectors in edit mode */}
+          {isEditing && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>From</Label>
+                <Select
+                  value={String(getSourceId())}
+                  onValueChange={(v) => setEditSourceId(Number(v))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sourceOptions.map((o) => (
+                      <SelectItem key={o.id} value={String(o.id)}>
+                        {o.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>To</Label>
+                <Select
+                  value={String(getDestId())}
+                  onValueChange={(v) => setEditDestId(Number(v))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {destOptions.map((o) => (
+                      <SelectItem key={o.id} value={String(o.id)}>
+                        {o.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+
           {/* Amount */}
           <div className="space-y-1.5">
             <Label htmlFor="tx-amount">Amount ({effSourceCurrency})</Label>

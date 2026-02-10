@@ -10,6 +10,7 @@ import { useTagsStore } from '@/stores/tags'
 import { clearCredentials } from '@/components/AuthScreen'
 import { getSetting, setSetting } from '@/db/queries/settings'
 import { CurrencySelect } from '@/components/CurrencySelect'
+import type { CardSize } from '@/stores/app'
 import { CsvImportDialog } from './CsvImportDialog'
 import { parseCsv, executeCsvImport } from '@/lib/csvImport'
 import type { ParseResult, EntityDef } from '@/lib/csvImport'
@@ -41,6 +42,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const [displayCurrency, setDisplayCurrency] = useState('')
   const compactAmounts = useAppStore(s => s.compactAmounts)
   const toastPosition = useAppStore(s => s.toastPosition)
+  const cardSize = useAppStore(s => s.cardSize)
   const [csvImportData, setCsvImportData] = useState<ParseResult | null>(null)
   const [csvImportOpen, setCsvImportOpen] = useState(false)
 
@@ -181,7 +183,11 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               <input
                 type="checkbox"
                 checked={compactAmounts}
-                onChange={(e) => useAppStore.getState().setCompactAmounts(e.target.checked)}
+                onChange={(e) => {
+                  const v = e.target.checked
+                  useAppStore.getState().setCompactAmounts(v)
+                  if (db) { setSetting(db, 'compact_amounts', v ? 'true' : 'false'); persistDebounced() }
+                }}
                 className="h-4 w-4 rounded border-gray-300 accent-emerald-600"
               />
               <span className="text-sm font-medium">Compact Amounts</span>
@@ -197,7 +203,11 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               <input
                 type="checkbox"
                 checked={toastPosition === 'bottom-center'}
-                onChange={(e) => useAppStore.getState().setToastPosition(e.target.checked ? 'bottom-center' : 'top-center')}
+                onChange={(e) => {
+                  const v = e.target.checked ? 'bottom-center' : 'top-center'
+                  useAppStore.getState().setToastPosition(v)
+                  if (db) { setSetting(db, 'toast_position', v); persistDebounced() }
+                }}
                 className="h-4 w-4 rounded border-gray-300 accent-emerald-600"
               />
               <span className="text-sm font-medium">Toast at Bottom</span>
@@ -205,6 +215,29 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             <p className="text-xs text-muted-foreground mt-1">
               Show notifications at the bottom of the screen instead of the top.
             </p>
+          </div>
+
+          {/* Card Size */}
+          <div>
+            <Label>Card Size</Label>
+            <div className="flex gap-2 mt-1">
+              {(['small', 'medium', 'large'] as CardSize[]).map((size) => (
+                <button
+                  key={size}
+                  onClick={() => {
+                    useAppStore.getState().setCardSize(size)
+                    if (db) { setSetting(db, 'card_size', size); persistDebounced() }
+                  }}
+                  className={`flex-1 rounded-md border px-3 py-1.5 text-sm capitalize transition-colors ${
+                    cardSize === size
+                      ? 'border-emerald-600 bg-emerald-50 text-emerald-700 font-medium'
+                      : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                  }`}
+                >
+                  {size}
+                </button>
+              ))}
+            </div>
           </div>
 
           <Separator />

@@ -16,6 +16,7 @@ interface EntityCardProps {
   /** 0–1 progress ratio for background coloring (red→green) */
   progress?: number
   isDragging?: boolean
+  hidden?: boolean
   onClick?: () => void
 }
 
@@ -26,10 +27,18 @@ function progressColor(ratio: number): string {
   return `hsl(${hue}, 60%, 92%)`
 }
 
-export function EntityCard({ name, currency, balance, earned, expectedAmount, spent, progress, isDragging, onClick }: EntityCardProps) {
+const sizeStyles = {
+  small:  { pad: 'p-1.5', name: 'text-sm font-medium truncate', badgeMt: 'mt-0.5', amtCls: 'text-[11px] mt-0.5', subCls: 'text-[10px] mt-0.5' },
+  medium: { pad: 'p-2',   name: 'font-medium truncate',         badgeMt: 'mt-0.5', amtCls: 'text-sm mt-0.5',     subCls: 'text-xs mt-0.5' },
+  large:  { pad: 'p-3',   name: 'font-medium truncate',         badgeMt: 'mt-1',   amtCls: 'text-sm mt-1',       subCls: 'text-xs mt-1' },
+} as const
+
+export function EntityCard({ name, currency, balance, earned, expectedAmount, spent, progress, isDragging, hidden, onClick }: EntityCardProps) {
   const compact = useAppStore(s => s.compactAmounts)
+  const cardSize = useAppStore(s => s.cardSize)
   const fmt = compact ? formatCentsShort : formatCents
   const fmtSmall = compact ? formatCentsShort : formatCentsCompact
+  const s = sizeStyles[cardSize]
 
   const bgStyle = progress !== undefined
     ? { backgroundColor: progressColor(progress) }
@@ -37,22 +46,22 @@ export function EntityCard({ name, currency, balance, earned, expectedAmount, sp
 
   return (
     <Card
-      className={`w-40 shrink-0 cursor-pointer select-none transition-opacity ${
-        isDragging ? 'opacity-40' : ''
+      className={`w-[calc(50%-0.375rem)] cursor-pointer select-none transition-opacity ${
+        isDragging ? 'opacity-40' : hidden ? 'opacity-40' : ''
       }`}
       style={bgStyle}
       onClick={onClick}
     >
-      <CardContent className="p-3">
-        <p className="font-medium truncate">{name}</p>
-        <Badge variant="secondary" className="mt-1">{currency}</Badge>
+      <CardContent className={s.pad}>
+        <p className={s.name}>{name}</p>
+        <Badge variant="secondary" className={s.badgeMt}>{currency}</Badge>
         {balance !== undefined && (
-          <p className={`text-sm font-medium mt-1 ${balance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+          <p className={`${s.amtCls} font-medium ${balance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
             {fmt(balance, currency)}
           </p>
         )}
         {earned !== undefined && (
-          <p className="text-xs mt-1 text-gray-600">
+          <p className={`${s.subCls} text-gray-600`}>
             {fmtSmall(earned, currency)}
             {expectedAmount !== undefined && expectedAmount > 0 && (
               <> / {fmtSmall(expectedAmount, currency)}</>
@@ -60,7 +69,7 @@ export function EntityCard({ name, currency, balance, earned, expectedAmount, sp
           </p>
         )}
         {spent !== undefined && spent > 0 && (
-          <p className="text-xs font-medium mt-1 text-red-600">
+          <p className={`${s.subCls} font-medium text-red-600`}>
             {fmtSmall(spent, currency)}
           </p>
         )}

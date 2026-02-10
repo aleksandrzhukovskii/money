@@ -83,6 +83,10 @@ export function deleteBudget(db: Database, id: number): void {
   db.run('UPDATE budgets SET is_active = 0 WHERE id = ?', [id])
 }
 
+export function reorderBudgets(db: Database, orderedIds: number[]): void {
+  orderedIds.forEach((id, i) => db.run('UPDATE budgets SET sort_order = ? WHERE id = ?', [i, id]))
+}
+
 /** Merge source budget into target: tag affected txs, reassign both FK columns, deactivate source */
 export function mergeBudget(db: Database, sourceId: number, targetId: number): void {
   const source = getBudgetById(db, sourceId)

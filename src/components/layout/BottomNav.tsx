@@ -3,7 +3,7 @@ import { Home, TrendingUp, Wallet, ShoppingCart, History, BarChart3, type Lucide
 
 const navItems: { to: string; label: string; icon: LucideIcon }[] = [
   { to: '/', label: 'Home', icon: Home },
-  { to: '/incomes', label: 'Earn', icon: TrendingUp },
+  { to: '/incomes', label: 'Income', icon: TrendingUp },
   { to: '/budgets', label: 'Budget', icon: Wallet },
   { to: '/spendings', label: 'Spend', icon: ShoppingCart },
   { to: '/history', label: 'History', icon: History },

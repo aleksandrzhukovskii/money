@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useDatabase } from '@/hooks/useDatabase'
 import { useExchangeRate } from '@/hooks/useExchangeRate'
+import { useAppStore } from '@/stores/app'
 import { useIncomesStore } from '@/stores/incomes'
 import { useBudgetsStore } from '@/stores/budgets'
 import { useSpendingTypesStore } from '@/stores/spendingTypes'
@@ -44,6 +45,7 @@ export function MainPage() {
       loadBudgets(db)
       loadSpendingTypes(db)
       loadTags(db)
+      useAppStore.getState().loadSettings(db)
     }
   }, [db, loadIncomes, loadBudgets, loadSpendingTypes, loadTags])
 

@@ -81,11 +81,18 @@ export function AddSpendingTypeDialog({ open, onOpenChange, editing }: AddSpendi
     onOpenChange(false)
   }
 
-  function handleDelete() {
+  function handleHide() {
     if (!db || !editing) return
     remove(db, editing.id)
     persistDebounced()
     setDeleteOpen(false)
+    onOpenChange(false)
+  }
+
+  function handleShow() {
+    if (!db || !editing) return
+    update(db, editing.id, { is_active: 1 })
+    persistDebounced()
     onOpenChange(false)
   }
 
@@ -160,9 +167,14 @@ export function AddSpendingTypeDialog({ open, onOpenChange, editing }: AddSpendi
             )}
           </div>
           <DialogFooter>
-            {editing && (
+            {editing && editing.is_active === 0 && (
+              <Button variant="outline" onClick={handleShow} className="mr-auto">
+                Show
+              </Button>
+            )}
+            {editing && editing.is_active !== 0 && (
               <Button variant="destructive" onClick={() => setDeleteOpen(true)} className="mr-auto">
-                Delete
+                Hide
               </Button>
             )}
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
@@ -176,10 +188,10 @@ export function AddSpendingTypeDialog({ open, onOpenChange, editing }: AddSpendi
       <ConfirmDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        title="Delete spending?"
-        description="This will deactivate the spending category. Existing transactions won't be affected."
-        onConfirm={handleDelete}
-        confirmLabel="Delete"
+        title="Hide spending?"
+        description="This will hide the spending category from lists. Existing transactions won't be affected. You can show it again later."
+        onConfirm={handleHide}
+        confirmLabel="Hide"
       />
 
       <ConfirmDialog

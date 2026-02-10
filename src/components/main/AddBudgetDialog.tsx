@@ -70,11 +70,18 @@ export function AddBudgetDialog({ open, onOpenChange, editing }: AddBudgetDialog
     onOpenChange(false)
   }
 
-  function handleDelete() {
+  function handleHide() {
     if (!db || !editing) return
     remove(db, editing.id)
     persistDebounced()
     setDeleteOpen(false)
+    onOpenChange(false)
+  }
+
+  function handleShow() {
+    if (!db || !editing) return
+    update(db, editing.id, { is_active: 1 })
+    persistDebounced()
     onOpenChange(false)
   }
 
@@ -150,9 +157,14 @@ export function AddBudgetDialog({ open, onOpenChange, editing }: AddBudgetDialog
             )}
           </div>
           <DialogFooter>
-            {editing && (
+            {editing && editing.is_active === 0 && (
+              <Button variant="outline" onClick={handleShow} className="mr-auto">
+                Show
+              </Button>
+            )}
+            {editing && editing.is_active !== 0 && (
               <Button variant="destructive" onClick={() => setDeleteOpen(true)} className="mr-auto">
-                Delete
+                Hide
               </Button>
             )}
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
@@ -166,10 +178,10 @@ export function AddBudgetDialog({ open, onOpenChange, editing }: AddBudgetDialog
       <ConfirmDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        title="Delete budget?"
-        description="This will deactivate the budget. Existing transactions won't be affected."
-        onConfirm={handleDelete}
-        confirmLabel="Delete"
+        title="Hide budget?"
+        description="This will hide the budget from lists. Existing transactions won't be affected. You can show it again later."
+        onConfirm={handleHide}
+        confirmLabel="Hide"
       />
 
       <ConfirmDialog

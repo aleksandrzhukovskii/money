@@ -84,6 +84,10 @@ export function mergeIncome(db: Database, sourceId: number, targetId: number): v
   db.run('UPDATE incomes SET is_active = 0 WHERE id = ?', [sourceId])
 }
 
+export function reorderIncomes(db: Database, orderedIds: number[]): void {
+  orderedIds.forEach((id, i) => db.run('UPDATE incomes SET sort_order = ? WHERE id = ?', [i, id]))
+}
+
 /** Returns a map of income_id → total earned amount for the current month */
 export function getMonthlyEarnings(db: Database): Record<number, number> {
   const now = new Date()

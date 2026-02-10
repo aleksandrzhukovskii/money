@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { SpendingType } from '@/types/database'
-import { getSpendingTypes, insertSpendingType, updateSpendingType, deleteSpendingType, getMonthlySpending, mergeSpendingType, changeSpendingTypeCurrency } from '@/db/queries/spendingTypes'
+import { getSpendingTypes, insertSpendingType, updateSpendingType, deleteSpendingType, getMonthlySpending, mergeSpendingType, changeSpendingTypeCurrency, reorderSpendingTypes } from '@/db/queries/spendingTypes'
 import type { Database } from 'sql.js'
 
 interface SpendingTypesState {
@@ -12,6 +12,7 @@ interface SpendingTypesState {
   remove: (db: Database, id: number) => void
   merge: (db: Database, sourceId: number, targetId: number) => void
   changeCurrency: (db: Database, id: number, newCurrency: string) => void
+  reorder: (db: Database, orderedIds: number[]) => void
 }
 
 export const useSpendingTypesStore = create<SpendingTypesState>((set) => ({
@@ -39,6 +40,10 @@ export const useSpendingTypesStore = create<SpendingTypesState>((set) => ({
   },
   changeCurrency: (db, id, newCurrency) => {
     changeSpendingTypeCurrency(db, id, newCurrency)
+    set({ items: getSpendingTypes(db), monthlySpent: getMonthlySpending(db) })
+  },
+  reorder: (db, orderedIds) => {
+    reorderSpendingTypes(db, orderedIds)
     set({ items: getSpendingTypes(db), monthlySpent: getMonthlySpending(db) })
   },
 }))
