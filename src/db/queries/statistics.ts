@@ -42,15 +42,21 @@ export interface BalancePoint {
 }
 
 // SQL expression: convert a transaction's amount to display currency.
-// Uses the exchange rate closest to the transaction date.
-// Uses 3 parameter slots (dc, dc, dc).
+// Uses the exchange rate closest to (but not after) the transaction date,
+// falling back to the nearest available rate if none exists before.
+// Uses 4 parameter slots (dc, dc, dc, dc).
 const TX_TO_DC = `CASE
   WHEN t.source_currency = ? THEN t.amount
   WHEN t.destination_currency = ? THEN t.converted_amount
   ELSE t.amount * COALESCE(
     (SELECT er.rate FROM exchange_rates er
      WHERE er.base_currency = t.source_currency AND er.target_currency = ?
-     ORDER BY ABS(julianday(er.date) - julianday(t.date)) LIMIT 1), 1)
+       AND er.date <= t.date
+     ORDER BY er.date DESC LIMIT 1),
+    (SELECT er.rate FROM exchange_rates er
+     WHERE er.base_currency = t.source_currency AND er.target_currency = ?
+     ORDER BY er.date ASC LIMIT 1),
+    1)
 END`
 
 export function getSpendingByCategory(db: Database, dateFrom: string, dateTo: string, dc: string): CategorySpending[] {
@@ -62,7 +68,7 @@ export function getSpendingByCategory(db: Database, dateFrom: string, dateTo: st
      WHERE t.type = 'spending' AND t.date BETWEEN ? AND ?
      GROUP BY st.id
      ORDER BY total DESC`,
-    [dc, dc, dc, dateFrom, dateTo],
+    [dc, dc, dc, dc, dateFrom, dateTo],
   )
   if (result.length === 0) return []
   return result[0]!.values.map((row) => ({
@@ -82,7 +88,7 @@ export function getMonthlyTotals(db: Database, dateFrom: string, dateTo: string,
        AND t.date BETWEEN ? AND ?
      GROUP BY month, t.type
      ORDER BY month`,
-    [dc, dc, dc, dateFrom, dateTo],
+    [dc, dc, dc, dc, dateFrom, dateTo],
   )
   if (result.length === 0) return []
   return result[0]!.values.map((row) => ({
@@ -100,7 +106,7 @@ export function getPeriodSummary(db: Database, dateFrom: string, dateTo: string,
        COUNT(*) as tx_count
      FROM transactions t
      WHERE t.date BETWEEN ? AND ?`,
-    [dc, dc, dc, dc, dc, dc, dateFrom, dateTo],
+    [dc, dc, dc, dc, dc, dc, dc, dc, dateFrom, dateTo],
   )
   if (result.length === 0 || result[0]!.values.length === 0) {
     return { total_income: 0, total_expense: 0, tx_count: 0 }
@@ -121,7 +127,7 @@ export function getDailySpending(db: Database, dateFrom: string, dateTo: string,
      WHERE t.type = 'spending' AND t.date BETWEEN ? AND ?
      GROUP BY t.date
      ORDER BY t.date`,
-    [dc, dc, dc, dateFrom, dateTo],
+    [dc, dc, dc, dc, dateFrom, dateTo],
   )
   if (result.length === 0) return []
   return result[0]!.values.map((row) => ({
@@ -140,7 +146,7 @@ export function getTagDistribution(db: Database, dateFrom: string, dateTo: strin
      WHERE t.date BETWEEN ? AND ?
      GROUP BY tg.id
      ORDER BY total DESC`,
-    [dc, dc, dc, dateFrom, dateTo],
+    [dc, dc, dc, dc, dateFrom, dateTo],
   )
   if (result.length === 0) return []
   return result[0]!.values.map((row) => ({
@@ -175,7 +181,7 @@ export function getBudgetBalanceTrend(db: Database, dateFrom: string, dateTo: st
      WHERE t.date <= ?
      GROUP BY month
      ORDER BY month`,
-    [dc, dc, dc, dc, dc, dc, dateTo],
+    [dc, dc, dc, dc, dc, dc, dc, dc, dateTo],
   )
 
   if (result.length === 0) return [{ month: dateFrom.slice(0, 7), total: base }]
