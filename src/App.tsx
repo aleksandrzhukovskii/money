@@ -42,12 +42,12 @@ export function App() {
     setSyncPhase('syncing')
     setSyncError(null)
 
-    backupRef.current.initialSync().then((ok) => {
-      if (ok) {
+    backupRef.current.initialSync().then((result) => {
+      if (result.ok) {
         setSyncPhase('synced')
       } else {
         setSyncPhase('error')
-        setSyncError('Failed to sync with GitHub')
+        setSyncError(result.error)
       }
     })
   }, [isAuthenticated, db, retryCount])

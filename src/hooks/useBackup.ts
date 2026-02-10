@@ -91,11 +91,11 @@ export function useBackup() {
 
   // --- GitHub sync ---
 
-  const push = useCallback(async (): Promise<boolean> => {
+  const push = useCallback(async (): Promise<{ ok: true } | { ok: false; error: string }> => {
     const config = getGitHubConfig()
     const password = getPassword()
     const bytes = exportRaw()
-    if (!config || !password || !bytes) return false
+    if (!config || !password || !bytes) return { ok: false, error: 'Missing config, password, or database' }
 
     try {
       setSyncStatus('syncing')
@@ -109,30 +109,32 @@ export function useBackup() {
       }
       markClean()
       setSyncStatus('synced')
-      return true
-    } catch {
+      return { ok: true }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      console.error('[sync] push failed:', message)
       setSyncStatus('error')
-      return false
+      return { ok: false, error: message }
     }
   }, [exportRaw, persist])
 
-  const pull = useCallback(async (): Promise<boolean> => {
+  const pull = useCallback(async (): Promise<{ ok: true; pulled: boolean } | { ok: false; error: string }> => {
     const config = getGitHubConfig()
     const password = getPassword()
-    if (!config || !password) return false
+    if (!config || !password) return { ok: false, error: 'Missing config or password' }
 
     try {
       setSyncStatus('syncing')
       const remote = await getFile(config.repo, config.token)
       if (!remote) {
         setSyncStatus('synced')
-        return false
+        return { ok: true, pulled: false }
       }
 
       // Skip if SHA hasn't changed
       if (_remoteSha && _remoteSha === remote.sha) {
         setSyncStatus('synced')
-        return false
+        return { ok: true, pulled: false }
       }
 
       const bytes = await decrypt(remote.data, password)
@@ -147,18 +149,20 @@ export function useBackup() {
       }
       markClean()
       setSyncStatus('synced')
-      return true
-    } catch {
+      return { ok: true, pulled: true }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      console.error('[sync] pull failed:', message)
       setSyncStatus('error')
-      return false
+      return { ok: false, error: message }
     }
   }, [importRaw, persist])
 
   // Initial sync — pull existing DB or push empty one for first commit
-  const initialSync = useCallback(async (): Promise<boolean> => {
+  const initialSync = useCallback(async (): Promise<{ ok: true } | { ok: false; error: string }> => {
     const config = getGitHubConfig()
     const password = getPassword()
-    if (!config || !password) return false
+    if (!config || !password) return { ok: false, error: 'Missing config or password' }
 
     try {
       setSyncStatus('syncing')
@@ -172,7 +176,7 @@ export function useBackup() {
       } else {
         // First commit — push empty DB
         const bytes = exportRaw()
-        if (!bytes) return false
+        if (!bytes) return { ok: false, error: 'No database to export' }
         const encrypted = await encrypt(bytes, password)
         const sha = await putFile(config.repo, config.token, encrypted, null)
         _remoteSha = sha
@@ -185,10 +189,12 @@ export function useBackup() {
       }
       markClean()
       setSyncStatus('synced')
-      return true
-    } catch {
+      return { ok: true }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      console.error('[sync] initialSync failed:', message)
       setSyncStatus('error')
-      return false
+      return { ok: false, error: message }
     }
   }, [exportRaw, importRaw, persist])
 

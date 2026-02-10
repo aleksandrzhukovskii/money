@@ -58,18 +58,22 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   }
 
   async function handleSyncNow() {
-    const ok = await backup.push()
-    if (ok) toast.success('Synced to GitHub')
-    else toast.error('Sync failed')
+    const result = await backup.push()
+    if (result.ok) toast.success('Synced to GitHub')
+    else toast.error(`Sync failed: ${result.error}`)
   }
 
   async function handlePull() {
-    const pulled = await backup.pull()
-    if (pulled) {
-      toast.success('Pulled from GitHub')
-      onOpenChange(false)
+    const result = await backup.pull()
+    if (result.ok) {
+      if (result.pulled) {
+        toast.success('Pulled from GitHub')
+        onOpenChange(false)
+      } else {
+        toast('Already up to date')
+      }
     } else {
-      toast('Already up to date')
+      toast.error(`Pull failed: ${result.error}`)
     }
   }
 
