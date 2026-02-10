@@ -5,7 +5,7 @@ export interface CsvRow {
   type: 'earning' | 'spending' | 'transfer'
   from: string
   to: string
-  tag: string
+  tags: string[]
   amount: number        // display value (not cents)
   currency: string
   convertedAmount: number
@@ -101,11 +101,16 @@ export function parseCsv(text: string): ParseResult {
     const csvType = (typeRaw ?? '').trim()
     const fromName = (from ?? '').trim()
     const toName = (to ?? '').trim()
-    const tag = (tagRaw ?? '').trim()
+    const tagRawStr = (tagRaw ?? '').trim()
     const cur = (currency ?? '').trim()
     const convCur = (convertedCurrency ?? '').trim()
 
     if (!fromName || !toName) continue
+
+    // Split comma-separated tags
+    const rowTags = tagRawStr
+      ? tagRawStr.split(',').map(t => t.trim()).filter(Boolean)
+      : []
 
     // Determine transaction type
     let txType: 'earning' | 'spending' | 'transfer'
@@ -129,14 +134,14 @@ export function parseCsv(text: string): ParseResult {
       toEntities.set(toName, toCurrency)
     }
 
-    if (tag) tagSet.add(tag)
+    for (const t of rowTags) tagSet.add(t)
 
     rows.push({
       date: convertDate((dateRaw ?? '').trim()),
       type: txType,
       from: fromName,
       to: toName,
-      tag,
+      tags: rowTags,
       amount: parseAmount((amountRaw ?? '').trim()),
       currency: cur,
       convertedAmount: parseAmount((convertedRaw ?? '').trim()),
@@ -312,12 +317,14 @@ export function executeCsvImport(
       ],
     )
 
-    // Link tag
-    if (row.tag) {
+    // Link tags
+    if (row.tags.length > 0) {
       const txId = db.exec('SELECT last_insert_rowid()')[0]!.values[0]![0] as number
-      const tagId = tagIds.get(row.tag)
-      if (tagId != null) {
-        db.run('INSERT INTO transaction_tags (transaction_id, tag_id) VALUES (?, ?)', [txId, tagId])
+      for (const tagName of row.tags) {
+        const tagId = tagIds.get(tagName)
+        if (tagId != null) {
+          db.run('INSERT INTO transaction_tags (transaction_id, tag_id) VALUES (?, ?)', [txId, tagId])
+        }
       }
     }
   }

@@ -16,7 +16,7 @@ export function AppShell() {
       <Sidebar className="hidden md:flex" />
 
       {/* Main content */}
-      <main className="flex-1 overflow-y-auto pb-16 md:pb-0">
+      <main className="flex-1 overflow-hidden pb-16 md:pb-0">
         <Outlet />
       </main>
 
