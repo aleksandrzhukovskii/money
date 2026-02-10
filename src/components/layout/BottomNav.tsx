@@ -13,7 +13,7 @@ const navItems: { to: string; label: string; icon: LucideIcon }[] = [
 export function BottomNav({ className = '' }: { className?: string }) {
   return (
     <nav
-      className={`fixed bottom-0 left-0 right-0 border-t border-gray-200 bg-white flex items-center justify-around px-1 ${className}`}
+      className={`shrink-0 border-t border-gray-200 bg-white flex items-center justify-around px-1 ${className}`}
       style={{ paddingBottom: 'var(--safe-area-bottom)' }}
     >
       {navItems.map((item) => (

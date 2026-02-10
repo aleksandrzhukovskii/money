@@ -15,13 +15,13 @@ export function AppShell() {
       {/* Desktop sidebar */}
       <Sidebar className="hidden md:flex" />
 
-      {/* Main content */}
-      <main className="flex-1 overflow-hidden pb-16 md:pb-0">
-        <Outlet />
-      </main>
-
-      {/* Mobile bottom nav */}
-      <BottomNav className="md:hidden" />
+      {/* Main content + mobile nav */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <main className="flex-1 overflow-hidden">
+          <Outlet />
+        </main>
+        <BottomNav className="md:hidden" />
+      </div>
 
       <Toaster
         position={toastPosition}
