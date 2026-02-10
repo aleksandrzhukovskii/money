@@ -29,6 +29,15 @@ export function SpendingByCategory({ data }: SpendingByCategoryProps) {
     legend: {
       bottom: 0,
       type: 'scroll' as const,
+      pageButtonPosition: 'both' as const,
+      tooltip: {
+        show: true,
+        formatter: (params: { name: string }) => {
+          const item = data.find((d) => d.name === params.name)
+          if (!item) return params.name
+          return `${params.name}: ${(item.total / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+        },
+      },
     },
     series: [
       {

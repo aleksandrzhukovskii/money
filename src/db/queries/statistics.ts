@@ -234,6 +234,52 @@ export function getBudgetBalanceTrend(db: Database, dateFrom: string, dateTo: st
   return points
 }
 
+export interface MonthlyExpense {
+  month: string
+  total: number
+}
+
+export function getFilteredMonthlyExpenses(
+  db: Database,
+  dateFrom: string,
+  dateTo: string,
+  dc: string,
+  tagIds?: number[],
+  spendingTypeIds?: number[],
+): MonthlyExpense[] {
+  const joins: string[] = []
+  const conditions: string[] = ["t.type = 'spending'", "t.date BETWEEN ? AND ?"]
+  const params: (string | number)[] = [...dcParams(dc, 1)]
+
+  if (tagIds && tagIds.length > 0) {
+    joins.push('JOIN transaction_tags tt ON tt.transaction_id = t.id')
+    conditions.push(`tt.tag_id IN (${tagIds.map(() => '?').join(',')})`)
+    params.push(...tagIds)
+  }
+
+  if (spendingTypeIds && spendingTypeIds.length > 0) {
+    conditions.push(`t.destination_spending_type_id IN (${spendingTypeIds.map(() => '?').join(',')})`)
+    params.push(...spendingTypeIds)
+  }
+
+  params.push(dateFrom, dateTo)
+
+  const sql = `SELECT strftime('%Y-%m', t."date") as month,
+     SUM(${TX_TO_DC}) as total
+   FROM transactions t
+   ${joins.join(' ')}
+   WHERE ${conditions.join(' AND ')}
+   GROUP BY month
+   ORDER BY month`
+
+  const result = db.exec(sql, params)
+  if (result.length === 0) return []
+  return result[0]!.values.map((row) => ({
+    month: row[0] as string,
+    total: row[1] as number,
+  }))
+}
+
 export function getCurrencyHoldings(db: Database): CurrencyHolding[] {
   const result = db.exec(`
     SELECT b.currency,
