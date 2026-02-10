@@ -122,8 +122,7 @@ export function AddBudgetDialog({ open, onOpenChange, editing }: AddBudgetDialog
               <Label htmlFor="budget-balance">Initial Balance</Label>
               <Input
                 id="budget-balance"
-                type="number"
-                step="0.01"
+                inputMode="decimal"
                 value={initialBalance}
                 onChange={(e) => setInitialBalance(e.target.value)}
                 placeholder="0.00"

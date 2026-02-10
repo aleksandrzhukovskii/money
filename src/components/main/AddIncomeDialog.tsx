@@ -122,9 +122,7 @@ export function AddIncomeDialog({ open, onOpenChange, editing }: AddIncomeDialog
               <Label htmlFor="income-expected">Expected Monthly Amount</Label>
               <Input
                 id="income-expected"
-                type="number"
-                step="0.01"
-                min="0"
+                inputMode="decimal"
                 value={expectedAmount}
                 onChange={(e) => setExpectedAmount(e.target.value)}
                 placeholder="0.00"
