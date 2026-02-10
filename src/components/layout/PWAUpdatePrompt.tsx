@@ -6,18 +6,22 @@ export function PWAUpdatePrompt() {
   const [updateSW, setUpdateSW] = useState<((reloadPage?: boolean) => Promise<void>) | null>(null)
 
   useEffect(() => {
-    // Only register on iOS
-    const isIOS =
-      /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-
-    if (!isIOS || !('serviceWorker' in navigator)) return
+    if (!('serviceWorker' in navigator)) return
 
     import('virtual:pwa-register').then(({ registerSW }) => {
       const update = registerSW({
         immediate: true,
         onNeedRefresh() {
           setNeedRefresh(true)
+        },
+        onRegistered(registration) {
+          if (!registration) return
+          // Check for updates every 30 minutes
+          setInterval(() => { registration.update() }, 30 * 60 * 1000)
+          // Also check on visibility change (app foregrounded)
+          document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') registration.update()
+          })
         },
       })
       setUpdateSW(() => update)
