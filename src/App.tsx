@@ -96,6 +96,16 @@ export function App() {
     refreshExchangeRates(db, persistDebounced).catch(() => {})
   }, [db, syncPhase, persistDebounced])
 
+  // Force iOS Safari to settle toolbar/safe-area after main UI renders
+  useEffect(() => {
+    if (syncPhase !== 'synced') return
+    const t = setTimeout(() => {
+      window.scrollTo(0, 1)
+      requestAnimationFrame(() => window.scrollTo(0, 0))
+    }, 300)
+    return () => clearTimeout(t)
+  }, [syncPhase])
+
   if (error) {
     return (
       <div className="flex h-dvh items-center justify-center p-4">
