@@ -8,7 +8,14 @@ function rowToTag(columns: string[], values: (string | number | null)[]): Tag {
 }
 
 export function getTags(db: Database): Tag[] {
-  const result = db.exec('SELECT * FROM tags ORDER BY name')
+  const result = db.exec(`
+    SELECT t.*
+    FROM tags t
+    LEFT JOIN transaction_tags tt ON tt.tag_id = t.id
+    LEFT JOIN transactions tx ON tx.id = tt.transaction_id
+    GROUP BY t.id
+    ORDER BY MAX(tx.date) DESC NULLS LAST, t.name
+  `)
   if (result.length === 0) return []
   const columns = result[0]!.columns
   return result[0]!.values.map((row) => rowToTag(columns, row as (string | number | null)[]))

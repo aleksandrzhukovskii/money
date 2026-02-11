@@ -7,6 +7,7 @@ import { useSpendingTypesStore } from '@/stores/spendingTypes'
 import { useTagsStore } from '@/stores/tags'
 import { insertTransaction, updateTransaction } from '@/db/queries/transactions'
 import { parseNumber } from '@/lib/parseNumber'
+import { evalExpression, isExpression } from '@/lib/evalExpression'
 import { TagPicker } from './TagPicker'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -189,15 +190,15 @@ export function TransactionDialog({
   // Auto-calculate converted amount when locked
   useEffect(() => {
     if (rateLocked && rate && amount) {
-      const val = parseNumber(amount)
-      if (!isNaN(val)) {
+      const val = isExpression(amount) ? evalExpression(amount) : parseNumber(amount)
+      if (!isNaN(val) && val > 0) {
         setConvertedAmount((val * rate).toFixed(2))
       }
     }
   }, [amount, rate, rateLocked])
 
   function effectiveRate(): number | null {
-    const a = parseNumber(amount)
+    const a = resolveAmount()
     const c = parseNumber(convertedAmount)
     if (!isNaN(a) && !isNaN(c) && a > 0) {
       return c / a
@@ -217,9 +218,14 @@ export function TransactionDialog({
     }
   }
 
+  function resolveAmount(): number {
+    if (isExpression(amount)) return evalExpression(amount)
+    return parseNumber(amount)
+  }
+
   function handleSave() {
     if (!db) return
-    const amountNum = parseNumber(amount)
+    const amountNum = resolveAmount()
     if (isNaN(amountNum) || amountNum <= 0) return
 
     const crossFields = isCrossCurrency
@@ -280,7 +286,7 @@ export function TransactionDialog({
     ? `Edit ${effType.charAt(0).toUpperCase() + effType.slice(1)}`
     : `New ${effType.charAt(0).toUpperCase() + effType.slice(1)}`
 
-  const amountValid = !isNaN(parseNumber(amount)) && parseNumber(amount) > 0
+  const amountValid = !isNaN(resolveAmount()) && resolveAmount() > 0
   const crossValid = !isCrossCurrency || (parseNumber(convertedAmount) > 0)
   const canSave = amountValid && crossValid
 
@@ -342,11 +348,19 @@ export function TransactionDialog({
             <Label htmlFor="tx-amount">Amount ({effSourceCurrency})</Label>
             <Input
               id="tx-amount"
-              inputMode="decimal"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.00"
+              onBlur={() => {
+                if (isExpression(amount)) {
+                  const result = evalExpression(amount)
+                  if (!isNaN(result) && result >= 0) setAmount(String(Math.round(result * 100) / 100))
+                }
+              }}
+              placeholder="0.00  (e.g. 15+18+25)"
             />
+            {isExpression(amount) && !isNaN(evalExpression(amount)) && (
+              <p className="text-xs text-muted-foreground">= {Math.round(evalExpression(amount) * 100) / 100}</p>
+            )}
           </div>
 
           {/* Cross-currency section */}
