@@ -55,6 +55,12 @@ export function resetDatabase() {
   initPromise = null
 }
 
+/** Override SQLite's ASCII-only LOWER() with a Unicode-aware version */
+function registerFunctions(db: Database) {
+  (db as unknown as { create_function: (name: string, fn: (x: unknown) => unknown) => void })
+    .create_function('LOWER', (x) => typeof x === 'string' ? x.toLowerCase() : x)
+}
+
 async function initDatabase(): Promise<Database> {
   const SQL = await initSqlJs({
     locateFile: (file: string) => `${import.meta.env.BASE_URL}${file}`,
@@ -64,11 +70,13 @@ async function initDatabase(): Promise<Database> {
 
   if (savedBytes) {
     const db = new SQL.Database(savedBytes)
+    registerFunctions(db)
     runMigrations(db)
     return db
   }
 
   const db = new SQL.Database()
+  registerFunctions(db)
   // Run schema as individual statements (split on semicolons)
   const statements = schema
     .split(';')
@@ -143,6 +151,7 @@ export function useDatabase() {
       locateFile: (file: string) => `${import.meta.env.BASE_URL}${file}`,
     })
     const newDb = new SQL.Database(bytes)
+    registerFunctions(newDb)
     runMigrations(newDb)
 
     // Replace singleton
