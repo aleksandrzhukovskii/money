@@ -32,6 +32,7 @@ export function getTransactions(db: Database, filters: TransactionFilters = {}):
     params.push(...filters.tagIds)
   }
   if (filters.commentSearch) {
+    db.create_function('LOWER_UNI', (x) => typeof x === 'string' ? (x as string).toLowerCase() : x)
     conditions.push('LOWER_UNI(t.comment) LIKE ?')
     params.push(`%${filters.commentSearch.toLowerCase()}%`)
   }
