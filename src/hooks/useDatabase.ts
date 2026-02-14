@@ -57,8 +57,7 @@ export function resetDatabase() {
 
 /** Register Unicode-aware LOWER_UNI() — SQLite's built-in LOWER() only handles ASCII */
 function registerFunctions(db: Database) {
-  (db as unknown as { create_function: (name: string, fn: (x: unknown) => unknown) => void })
-    .create_function('LOWER_UNI', (x) => typeof x === 'string' ? x.toLowerCase() : x)
+  db.create_function('LOWER_UNI', (x) => typeof x === 'string' ? x.toLowerCase() : x)
 }
 
 async function initDatabase(): Promise<Database> {
