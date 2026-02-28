@@ -11,6 +11,7 @@ import { SpendingByCategory } from '@/components/stats/SpendingByCategory'
 import { IncomeVsExpense } from '@/components/stats/IncomeVsExpense'
 import { ExpenseBreakdown } from '@/components/stats/ExpenseBreakdown'
 import { MonthlyTrend } from '@/components/stats/MonthlyTrend'
+import { MonthlyEarningTrend } from '@/components/stats/MonthlyEarningTrend'
 import { BudgetBalanceTrend } from '@/components/stats/BudgetBalanceTrend'
 import { TagCloud } from '@/components/stats/TagCloud'
 import { CurrencyBreakdown } from '@/components/stats/CurrencyBreakdown'
@@ -233,6 +234,10 @@ export function StatisticsPage() {
 
       <Section title="Monthly Spending Trend">
         <MonthlyTrend data={data.monthlyTotals} />
+      </Section>
+
+      <Section title="Monthly Earning Trend">
+        <MonthlyEarningTrend data={data.monthlyTotals} />
       </Section>
 
       <Section title="Budget Balance Trend">
