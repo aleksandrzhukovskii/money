@@ -18,7 +18,7 @@ export function MonthlyEarningTrend({ data }: MonthlyEarningTrendProps) {
 
   const months = earningData.map((d) => d.month).sort()
   const values = months.map(
-    (m) => (earningData.find((d) => d.month === m)?.total ?? 0) / 100,
+    (m) => +((earningData.find((d) => d.month === m)?.total ?? 0) / 100).toFixed(2),
   )
 
   const option = {

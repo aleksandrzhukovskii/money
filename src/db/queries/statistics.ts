@@ -278,6 +278,58 @@ export function getFilteredMonthlyExpenses(
   }))
 }
 
+export function getMonthlyEarningsByIncome(
+  db: Database,
+  dateFrom: string,
+  dateTo: string,
+  dc: string,
+  incomeId: number,
+): MonthlyTotal[] {
+  const result = db.exec(
+    `SELECT strftime('%Y-%m', t.date) as month, t.type,
+       SUM(${TX_TO_DC}) as total
+     FROM transactions t
+     WHERE t.type = 'earning'
+       AND t.source_income_id = ?
+       AND t.date BETWEEN ? AND ?
+     GROUP BY month
+     ORDER BY month`,
+    [...dcParams(dc, 1), incomeId, dateFrom, dateTo],
+  )
+  if (result.length === 0) return []
+  return result[0]!.values.map((row) => ({
+    month: row[0] as string,
+    type: row[1] as string,
+    total: row[2] as number,
+  }))
+}
+
+export function getMonthlySpendingByType(
+  db: Database,
+  dateFrom: string,
+  dateTo: string,
+  dc: string,
+  spendingTypeId: number,
+): MonthlyTotal[] {
+  const result = db.exec(
+    `SELECT strftime('%Y-%m', t.date) as month, t.type,
+       SUM(${TX_TO_DC}) as total
+     FROM transactions t
+     WHERE t.type = 'spending'
+       AND t.destination_spending_type_id = ?
+       AND t.date BETWEEN ? AND ?
+     GROUP BY month
+     ORDER BY month`,
+    [...dcParams(dc, 1), spendingTypeId, dateFrom, dateTo],
+  )
+  if (result.length === 0) return []
+  return result[0]!.values.map((row) => ({
+    month: row[0] as string,
+    type: row[1] as string,
+    total: row[2] as number,
+  }))
+}
+
 export function getCurrencyHoldings(db: Database, dc: string): CurrencyHolding[] {
   const result = db.exec(`
     SELECT b.currency,

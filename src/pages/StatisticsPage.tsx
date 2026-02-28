@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useStatistics } from '@/hooks/useStatistics'
 import { useDatabase } from '@/hooks/useDatabase'
+import { useIncomesStore } from '@/stores/incomes'
 import { useSpendingTypesStore } from '@/stores/spendingTypes'
 import { useTagsStore } from '@/stores/tags'
 import { refreshExchangeRates } from '@/lib/exchangeRateSync'
-import { getFilteredMonthlyExpenses } from '@/db/queries/statistics'
+import { getFilteredMonthlyExpenses, getMonthlyEarningsByIncome, getMonthlySpendingByType } from '@/db/queries/statistics'
 import { DateRangeSelector } from '@/components/stats/DateRangeSelector'
 import { SummaryCards } from '@/components/stats/SummaryCards'
 import { SpendingByCategory } from '@/components/stats/SpendingByCategory'
@@ -103,14 +104,67 @@ function MultiSelectCombobox({
   )
 }
 
+function EntityFilterCombobox({
+  placeholder,
+  items,
+  selected,
+  onSelect,
+}: {
+  placeholder: string
+  items: { id: number; name: string }[]
+  selected: number | null
+  onSelect: (id: number | null) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const selectedItem = items.find((i) => i.id === selected)
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" role="combobox" aria-expanded={open} className="justify-between font-normal w-full">
+          <span className="truncate text-sm">
+            {selectedItem ? selectedItem.name : placeholder}
+          </span>
+          <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+        <Command shouldFilter={false}>
+          <CommandInput placeholder="Search..." value={search} onValueChange={setSearch} />
+          <CommandList>
+            <CommandItem value="__all__" onSelect={() => { onSelect(null); setOpen(false) }}>
+              <Check className={`mr-2 h-4 w-4 shrink-0 ${selected === null ? 'opacity-100' : 'opacity-0'}`} />
+              All
+            </CommandItem>
+            {items
+              .filter((i) => !search.trim() || i.name.toLowerCase().includes(search.trim().toLowerCase()))
+              .map((item) => (
+                <CommandItem key={item.id} value={item.name} onSelect={() => { onSelect(item.id); setOpen(false) }}>
+                  <Check className={`mr-2 h-4 w-4 shrink-0 ${selected === item.id ? 'opacity-100' : 'opacity-0'}`} />
+                  {item.name}
+                </CommandItem>
+              ))}
+            {items.length > 0 && items.every((i) => !i.name.toLowerCase().includes((search.trim() || '').toLowerCase())) && (
+              <CommandEmpty>No matches</CommandEmpty>
+            )}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
 export function StatisticsPage() {
   const { db, persistDebounced } = useDatabase()
   const [ratesReady, setRatesReady] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
   const [selectedSpendingTypes, setSelectedSpendingTypes] = useState<number[]>([])
   const [selectedTags, setSelectedTags] = useState<number[]>([])
+  const [trendIncomeId, setTrendIncomeId] = useState<number | null>(null)
+  const [trendSpendingTypeId, setTrendSpendingTypeId] = useState<number | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
 
+  const incomes = useIncomesStore((s) => s.items)
   const spendingTypes = useSpendingTypesStore((s) => s.items)
   const tags = useTagsStore((s) => s.items)
 
@@ -143,6 +197,20 @@ export function StatisticsPage() {
     )
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [db, data?.dateFrom, data?.dateTo, data?.displayCurrency, selectedTags, selectedSpendingTypes, refreshKey])
+
+  const earningTrendData = useMemo(() => {
+    if (!db || !data) return []
+    if (trendIncomeId === null) return data.monthlyTotals
+    return getMonthlyEarningsByIncome(db, data.dateFrom, data.dateTo, data.displayCurrency, trendIncomeId)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [db, data?.dateFrom, data?.dateTo, data?.displayCurrency, trendIncomeId, refreshKey])
+
+  const spendingTrendData = useMemo(() => {
+    if (!db || !data) return []
+    if (trendSpendingTypeId === null) return data.monthlyTotals
+    return getMonthlySpendingByType(db, data.dateFrom, data.dateTo, data.displayCurrency, trendSpendingTypeId)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [db, data?.dateFrom, data?.dateTo, data?.displayCurrency, trendSpendingTypeId, refreshKey])
 
   function toggleSpendingType(id: number) {
     setSelectedSpendingTypes((prev) =>
@@ -233,11 +301,23 @@ export function StatisticsPage() {
       </Section>
 
       <Section title="Monthly Spending Trend">
-        <MonthlyTrend data={data.monthlyTotals} />
+        <EntityFilterCombobox
+          placeholder="All spending categories"
+          items={spendingTypes}
+          selected={trendSpendingTypeId}
+          onSelect={setTrendSpendingTypeId}
+        />
+        <MonthlyTrend data={spendingTrendData} />
       </Section>
 
       <Section title="Monthly Earning Trend">
-        <MonthlyEarningTrend data={data.monthlyTotals} />
+        <EntityFilterCombobox
+          placeholder="All income sources"
+          items={incomes}
+          selected={trendIncomeId}
+          onSelect={setTrendIncomeId}
+        />
+        <MonthlyEarningTrend data={earningTrendData} />
       </Section>
 
       <Section title="Budget Balance Trend">
