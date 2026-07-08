@@ -122,7 +122,7 @@ export function AuthScreen() {
                   id="password"
                   name="password"
                   type="password"
-                  autoComplete="password"
+                  autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter password"
