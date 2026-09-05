@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useDatabase } from '@/hooks/useDatabase'
 import { useExchangeRate } from '@/hooks/useExchangeRate'
 import { useAppStore } from '@/stores/app'
@@ -159,6 +159,34 @@ export function MainPage() {
     return parseNumber(amount)
   }
 
+  // --- Keyboard flow: From -> To -> Amount -> Enter saves ---
+
+  const [toOpen, setToOpen] = useState(false)
+  const toTriggerRef = useRef<HTMLButtonElement>(null)
+  const amountRef = useRef<HTMLInputElement>(null)
+
+  // Only pop the destination list open for a mouse/trackpad. On touch that would
+  // raise the on-screen keyboard for the search box before it's wanted.
+  function hasFinePointer() {
+    return typeof window !== 'undefined' && window.matchMedia('(pointer: fine)').matches
+  }
+
+  // Deferred: the combobox that was just used is still closing, and Radix
+  // restores focus to its own trigger on the way out.
+  function advanceToDestination() {
+    setTimeout(() => {
+      if (hasFinePointer()) setToOpen(true)
+      else toTriggerRef.current?.focus()
+    }, 0)
+  }
+
+  function advanceToAmount() {
+    setTimeout(() => {
+      amountRef.current?.focus()
+      amountRef.current?.select()
+    }, 0)
+  }
+
   // Validation
   const amountValid = !isNaN(resolveAmount()) && resolveAmount() > 0
   const crossValid = !isCrossCurrency || (parseNumber(convertedAmount) > 0)
@@ -208,6 +236,9 @@ export function MainPage() {
     setRateLocked(true)
     setComment('')
     setTagIds([])
+
+    // From is kept for the next entry, so hand focus back to the destination.
+    setTimeout(() => toTriggerRef.current?.focus(), 0)
   }
 
   // Combobox groups
@@ -239,6 +270,7 @@ export function MainPage() {
           onChange={setFromKey}
           groups={fromGroups}
           placeholder="Select source..."
+          onSelected={advanceToDestination}
         />
 
         <EntityCombobox
@@ -248,6 +280,10 @@ export function MainPage() {
           onChange={setToKey}
           groups={toGroups}
           placeholder="Select destination..."
+          open={toOpen}
+          onOpenChange={setToOpen}
+          triggerRef={toTriggerRef}
+          onSelected={advanceToAmount}
         />
 
         {/* Amount */}
@@ -257,8 +293,14 @@ export function MainPage() {
           </Label>
           <Input
             id="home-amount"
+            ref={amountRef}
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key !== 'Enter') return
+              e.preventDefault()
+              if (canSave) handleAdd()
+            }}
             onBlur={() => {
               if (isExpression(amount)) {
                 const result = evalExpression(amount)

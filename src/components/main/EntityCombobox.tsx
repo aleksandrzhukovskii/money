@@ -1,3 +1,4 @@
+import * as React from 'react'
 import { useState } from 'react'
 import { useAppStore } from '@/stores/app'
 import { formatCents, formatCentsShort } from '@/lib/format'
@@ -40,10 +41,30 @@ interface EntityComboboxProps {
   onChange: (key: { type: string; id: number } | null) => void
   groups: ComboboxGroup[]
   placeholder?: string
+  /** Controlled open state. Omit both to let the combobox manage its own. */
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  /** Lets a parent move focus here, e.g. to advance through the form. */
+  triggerRef?: React.Ref<HTMLButtonElement>
+  /** Fired after a value is picked, so a parent can advance to the next field. */
+  onSelected?: () => void
 }
 
-export function EntityCombobox({ label, items, value, onChange, groups, placeholder = 'Select...' }: EntityComboboxProps) {
-  const [open, setOpen] = useState(false)
+export function EntityCombobox({
+  label,
+  items,
+  value,
+  onChange,
+  groups,
+  placeholder = 'Select...',
+  open: controlledOpen,
+  onOpenChange,
+  triggerRef,
+  onSelected,
+}: EntityComboboxProps) {
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false)
+  const open = controlledOpen ?? uncontrolledOpen
+  const setOpen = onOpenChange ?? setUncontrolledOpen
   const compact = useAppStore(s => s.compactAmounts)
   const fmt = compact ? formatCentsShort : formatCents
 
@@ -59,6 +80,7 @@ export function EntityCombobox({ label, items, value, onChange, groups, placehol
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
+            ref={triggerRef}
             variant="outline"
             role="combobox"
             aria-expanded={open}
@@ -90,6 +112,7 @@ export function EntityCombobox({ label, items, value, onChange, groups, placehol
                           onSelect={() => {
                             onChange({ type: item.type, id: item.id })
                             setOpen(false)
+                            onSelected?.()
                           }}
                         >
                           <Check className={`mr-2 h-4 w-4 shrink-0 ${isSelected ? 'opacity-100' : 'opacity-0'}`} />
