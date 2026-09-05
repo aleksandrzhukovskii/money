@@ -59,7 +59,12 @@ export function App() {
 
     function handleVisibility() {
       if (document.visibilityState === 'visible') {
-        backupRef.current.pull()
+        // Flush first: pull() replaces the entire database, so pulling with
+        // unsynced local writes still pending would silently discard them.
+        backupRef.current.flushPush().then(() => backupRef.current.pull())
+      } else {
+        // Backgrounding is the last reliable signal on iOS — don't wait out the debounce.
+        backupRef.current.flushPush()
       }
     }
 

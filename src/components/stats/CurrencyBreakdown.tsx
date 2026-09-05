@@ -1,5 +1,6 @@
 import ReactECharts from 'echarts-for-react'
 import type { CurrencyHolding } from '@/db/queries/statistics'
+import { escapeHtml } from '@/lib/escapeHtml'
 
 interface CurrencyBreakdownProps {
   data: CurrencyHolding[]
@@ -23,7 +24,7 @@ export function CurrencyBreakdown({ data, displayCurrency }: CurrencyBreakdownPr
       trigger: 'axis' as const,
       formatter: (params: { name: string; value: number }[]) => {
         const suffix = displayCurrency && params[0]!.name !== displayCurrency ? ` ${displayCurrency}` : ''
-        return `${params[0]!.name}: ${params[0]!.value.toLocaleString(undefined, { minimumFractionDigits: 2 })}${suffix}`
+        return `${escapeHtml(params[0]!.name)}: ${params[0]!.value.toLocaleString(undefined, { minimumFractionDigits: 2 })}${escapeHtml(suffix)}`
       },
     },
     grid: { left: 60, right: 20, top: 10, bottom: 20 },

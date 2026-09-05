@@ -1,5 +1,6 @@
 import ReactECharts from 'echarts-for-react'
 import type { TagTotal } from '@/db/queries/statistics'
+import { escapeHtml } from '@/lib/escapeHtml'
 
 interface TagCloudProps {
   data: TagTotal[]
@@ -17,7 +18,7 @@ export function TagCloud({ data }: TagCloudProps) {
   const option = {
     tooltip: {
       formatter: (params: { name: string; value: number; data: { count: number } }) =>
-        `${params.name}: ${(params.value / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })} (${params.data.count} txns)`,
+        `${escapeHtml(params.name)}: ${(params.value / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })} (${params.data.count} txns)`,
     },
     series: [
       {

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useDatabase, deleteLocalDatabase, resetDatabase } from '@/hooks/useDatabase'
+import { useDatabase } from '@/hooks/useDatabase'
 import { useBackup } from '@/hooks/useBackup'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
@@ -7,12 +7,12 @@ import { useIncomesStore } from '@/stores/incomes'
 import { useBudgetsStore } from '@/stores/budgets'
 import { useSpendingTypesStore } from '@/stores/spendingTypes'
 import { useTagsStore } from '@/stores/tags'
-import { clearCredentials } from '@/components/AuthScreen'
 import { getSetting, setSetting } from '@/db/queries/settings'
 import { CurrencySelect } from '@/components/CurrencySelect'
 import type { CardSize } from '@/stores/app'
 import { CsvImportDialog } from './CsvImportDialog'
 import { parseCsv, executeCsvImport } from '@/lib/csvImport'
+import { clearAllLocalData } from '@/lib/localData'
 import type { ParseResult, EntityDef } from '@/lib/csvImport'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -92,12 +92,10 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  function handleLogout() {
+  async function handleLogout() {
     useAuthStore.getState().clearAuth()
-    clearCredentials()
-    deleteLocalDatabase()
-    resetDatabase()
-    onOpenChange(false)
+    await clearAllLocalData()
+    window.location.reload()
   }
 
   async function handleCheckUpdate() {
@@ -266,9 +264,6 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             <div className="flex flex-wrap gap-2 mt-2">
               <Button variant="outline" size="sm" onClick={backup.exportEncrypted}>
                 Export Encrypted
-              </Button>
-              <Button variant="outline" size="sm" onClick={backup.exportPlain}>
-                Export Plain
               </Button>
               <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
                 Import File

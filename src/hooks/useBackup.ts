@@ -1,6 +1,8 @@
-import { useCallback, useRef, useState } from 'react'
-import { useDatabase, getDb, markClean, markDirty } from './useDatabase'
+import { useCallback, useRef } from 'react'
+import { toast } from 'sonner'
+import { useDatabase, getDb, markClean, markDirty, isDirty } from './useDatabase'
 import { useAuthStore } from '@/stores/auth'
+import { useSyncStore } from '@/stores/sync'
 import { encrypt, decrypt } from '@/lib/crypto'
 import { getFile, putFile } from '@/lib/githubSync'
 import { setSetting } from '@/db/queries/settings'
@@ -9,7 +11,10 @@ import { useBudgetsStore } from '@/stores/budgets'
 import { useSpendingTypesStore } from '@/stores/spendingTypes'
 import { useTagsStore } from '@/stores/tags'
 
-export type SyncStatus = 'idle' | 'syncing' | 'synced' | 'error'
+export type { SyncStatus } from '@/stores/sync'
+
+/** Shorthand for the sync store's actions — safe to call outside of render. */
+const sync = () => useSyncStore.getState()
 
 function downloadBlob(data: Uint8Array, filename: string) {
   const blob = new Blob([data as BlobPart], { type: 'application/octet-stream' })
@@ -38,9 +43,13 @@ function getGitHubConfig(): { repo: string; token: string } | null {
 // Module-level so all useBackup instances share the same SHA
 let _remoteSha: string | null = null
 
+// Writes already sit behind a 500ms persist debounce, so this keeps the total
+// window between a write and it reaching GitHub at roughly the documented 2s.
+const PUSH_DEBOUNCE_MS = 1_500
+
 export function useBackup() {
   const { exportRaw, importRaw, persist } = useDatabase()
-  const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle')
+  const syncStatus = useSyncStore((state) => state.status)
   const pushTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const isGitHubConfigured = useAuthStore(
@@ -64,12 +73,6 @@ export function useBackup() {
     if (!bytes || !password) return
     const encrypted = await encrypt(bytes, password)
     downloadBlob(encrypted, `money-tracker-${dateStamp()}.enc`)
-  }, [exportRaw])
-
-  const exportPlain = useCallback(() => {
-    const bytes = exportRaw()
-    if (!bytes) return
-    downloadBlob(bytes, `money-tracker-${dateStamp()}.db`)
   }, [exportRaw])
 
   // --- Manual import ---
@@ -98,7 +101,7 @@ export function useBackup() {
     if (!config || !password || !bytes) return { ok: false, error: 'Missing config, password, or database' }
 
     try {
-      setSyncStatus('syncing')
+      sync().setStatus('syncing')
       const encrypted = await encrypt(bytes, password)
       const newSha = await putFile(config.repo, config.token, encrypted, _remoteSha)
       _remoteSha = newSha
@@ -108,12 +111,12 @@ export function useBackup() {
         await persist()
       }
       markClean()
-      setSyncStatus('synced')
+      sync().markSynced()
       return { ok: true }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       console.error('[sync] push failed:', message)
-      setSyncStatus('error')
+      sync().setError(message)
       return { ok: false, error: message }
     }
   }, [exportRaw, persist])
@@ -124,16 +127,16 @@ export function useBackup() {
     if (!config || !password) return { ok: false, error: 'Missing config or password' }
 
     try {
-      setSyncStatus('syncing')
+      sync().setStatus('syncing')
       const remote = await getFile(config.repo, config.token)
       if (!remote) {
-        setSyncStatus('synced')
+        sync().setStatus('idle')
         return { ok: true, pulled: false }
       }
 
       // Skip if SHA hasn't changed
       if (_remoteSha && _remoteSha === remote.sha) {
-        setSyncStatus('synced')
+        sync().setStatus('idle')
         return { ok: true, pulled: false }
       }
 
@@ -148,12 +151,12 @@ export function useBackup() {
         await persist()
       }
       markClean()
-      setSyncStatus('synced')
+      sync().markSynced()
       return { ok: true, pulled: true }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       console.error('[sync] pull failed:', message)
-      setSyncStatus('error')
+      sync().setError(message)
       return { ok: false, error: message }
     }
   }, [importRaw, persist])
@@ -165,7 +168,7 @@ export function useBackup() {
     if (!config || !password) return { ok: false, error: 'Missing config or password' }
 
     try {
-      setSyncStatus('syncing')
+      sync().setStatus('syncing')
       const remote = await getFile(config.repo, config.token)
 
       if (remote) {
@@ -188,35 +191,52 @@ export function useBackup() {
         await persist()
       }
       markClean()
-      setSyncStatus('synced')
+      sync().markSynced()
       return { ok: true }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       console.error('[sync] initialSync failed:', message)
-      setSyncStatus('error')
+      sync().setError(message)
       return { ok: false, error: message }
     }
   }, [exportRaw, importRaw, persist])
 
-  // Auto-push after writes (debounced 3s)
+  // Auto-push after writes. GitHub is the only durable copy, so a failure here
+  // means unsynced work — surface it instead of only logging to the console.
   const schedulePush = useCallback(() => {
     if (!getGitHubConfig()) return
     if (pushTimer.current) clearTimeout(pushTimer.current)
-    pushTimer.current = setTimeout(() => {
-      push()
-    }, 3_000)
+    pushTimer.current = setTimeout(async () => {
+      const result = await push()
+      if (!result.ok) toast.error(`Not synced to GitHub: ${result.error}`)
+    }, PUSH_DEBOUNCE_MS)
+  }, [push])
+
+  /**
+   * Push right now, skipping the debounce. Called when the app is about to be
+   * backgrounded and before a pull, since pull() replaces the whole database and
+   * would otherwise discard local writes that never reached GitHub.
+   */
+  const flushPush = useCallback(async () => {
+    if (pushTimer.current) {
+      clearTimeout(pushTimer.current)
+      pushTimer.current = null
+    }
+    if (!isDirty() || !getGitHubConfig()) return
+    const result = await push()
+    if (!result.ok) toast.error(`Not synced to GitHub: ${result.error}`)
   }, [push])
 
   return {
     // Manual
     exportEncrypted,
-    exportPlain,
     importFile,
     // GitHub sync
     push,
     pull,
     initialSync,
     schedulePush,
+    flushPush,
     syncStatus,
     isGitHubConfigured,
   }

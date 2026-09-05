@@ -7,3 +7,4 @@ dist
 CLAUDE.md
 docs
 .env.example
+tools/decrypt/money-decrypt

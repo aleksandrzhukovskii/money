@@ -1,5 +1,6 @@
 import ReactECharts from 'echarts-for-react'
 import type { BalancePoint } from '@/db/queries/statistics'
+import { escapeHtml } from '@/lib/escapeHtml'
 
 interface BudgetBalanceTrendProps {
   data: BalancePoint[]
@@ -21,7 +22,7 @@ export function BudgetBalanceTrend({ data }: BudgetBalanceTrendProps) {
     tooltip: {
       trigger: 'axis' as const,
       formatter: (params: { name: string; value: number }[]) =>
-        `${params[0]!.name}: ${params[0]!.value.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+        `${escapeHtml(params[0]!.name)}: ${params[0]!.value.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
     },
     grid: { left: 50, right: 20, top: 20, bottom: 30 },
     xAxis: {

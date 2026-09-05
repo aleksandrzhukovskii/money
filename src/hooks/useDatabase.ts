@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import initSqlJs, { type Database } from 'sql.js'
-import { openDB } from 'idb'
+import { openDB, type IDBPDatabase } from 'idb'
+import { useSyncStore } from '@/stores/sync'
 import { runMigrations } from '@/db/migrations'
 import schema from '@/db/schema.sql?raw'
 
@@ -8,14 +9,29 @@ const IDB_NAME = 'money-tracker'
 const IDB_STORE = 'app-data'
 const IDB_KEY = 'sqlite-db'
 
+// Cached so the connection can be closed again — an open connection blocks
+// indexedDB.deleteDatabase(), which is how the local wipe used to stall.
+let idbPromise: Promise<IDBPDatabase> | null = null
+
 async function getIdb() {
-  return openDB(IDB_NAME, 1, {
-    upgrade(db) {
-      if (!db.objectStoreNames.contains(IDB_STORE)) {
-        db.createObjectStore(IDB_STORE)
-      }
-    },
-  })
+  if (!idbPromise) {
+    idbPromise = openDB(IDB_NAME, 1, {
+      upgrade(db) {
+        if (!db.objectStoreNames.contains(IDB_STORE)) {
+          db.createObjectStore(IDB_STORE)
+        }
+      },
+    })
+  }
+  return idbPromise
+}
+
+export async function closeIdb(): Promise<void> {
+  if (!idbPromise) return
+  try {
+    (await idbPromise).close()
+  } catch { /* already closed */ }
+  idbPromise = null
 }
 
 async function loadFromIndexedDB(): Promise<Uint8Array | null> {
@@ -33,11 +49,11 @@ async function saveToIndexedDB(data: Uint8Array): Promise<void> {
 let dbInstance: Database | null = null
 let initPromise: Promise<Database> | null = null
 
-// Dirty flag — tracks whether local changes exist that haven't been synced
-let _dirty = false
-export function markDirty() { _dirty = true }
-export function markClean() { _dirty = false }
-export function isDirty() { return _dirty }
+// Dirty flag — tracks whether local changes exist that haven't been synced.
+// Lives in the sync store so the UI can render it.
+export function markDirty() { useSyncStore.getState().setPending(true) }
+export function markClean() { useSyncStore.getState().setPending(false) }
+export function isDirty() { return useSyncStore.getState().pending }
 
 export function deleteLocalDatabase() {
   indexedDB.deleteDatabase(IDB_NAME)
@@ -126,7 +142,7 @@ export function useDatabase() {
       clearTimeout(persistTimer.current)
     }
     persistTimer.current = setTimeout(async () => {
-      _dirty = true
+      markDirty()
       await persist()
       window.dispatchEvent(new CustomEvent('db-persisted'))
     }, 500)

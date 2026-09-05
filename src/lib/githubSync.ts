@@ -1,6 +1,21 @@
 const FILE_PATH = 'money-tracker.enc'
 const API_BASE = 'https://api.github.com'
 
+// GitHub owner/repo names allow letters, digits, `.`, `-` and `_`. Validating the
+// shape (and rejecting dot-only segments) keeps a stored value from re-pointing an
+// API request — and the PAT that goes with it — at some other endpoint.
+const REPO_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/
+
+export function isValidRepo(repo: string): boolean {
+  if (!REPO_PATTERN.test(repo)) return false
+  return !repo.split('/').some((segment) => /^\.+$/.test(segment))
+}
+
+function repoPath(repo: string): string {
+  if (!isValidRepo(repo)) throw new Error(`Invalid repository "${repo}" — expected "owner/repo"`)
+  return repo
+}
+
 function headers(token: string) {
   return {
     Authorization: `Bearer ${token}`,
@@ -29,7 +44,7 @@ export async function getFile(
   repo: string,
   token: string,
 ): Promise<{ data: Uint8Array; sha: string } | null> {
-  const res = await fetch(`${API_BASE}/repos/${repo}/contents/${FILE_PATH}`, {
+  const res = await fetch(`${API_BASE}/repos/${repoPath(repo)}/contents/${FILE_PATH}`, {
     headers: headers(token),
   })
 
@@ -44,7 +59,7 @@ export async function getFile(
   }
 
   // Large files (>1MB): Contents API omits content, use Git Blobs API
-  const blobRes = await fetch(`${API_BASE}/repos/${repo}/git/blobs/${file.sha}`, {
+  const blobRes = await fetch(`${API_BASE}/repos/${repoPath(repo)}/git/blobs/${file.sha}`, {
     headers: headers(token),
   })
   if (!blobRes.ok) throw new Error(`GitHub Blob API error: ${blobRes.status}`)
@@ -73,7 +88,7 @@ export async function putFile(
     body.sha = existingSha
   }
 
-  const res = await fetch(`${API_BASE}/repos/${repo}/contents/${FILE_PATH}`, {
+  const res = await fetch(`${API_BASE}/repos/${repoPath(repo)}/contents/${FILE_PATH}`, {
     method: 'PUT',
     headers: { ...headers(token), 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -92,7 +107,7 @@ export async function getFileMeta(
   repo: string,
   token: string,
 ): Promise<{ sha: string } | null> {
-  const res = await fetch(`${API_BASE}/repos/${repo}/contents/${FILE_PATH}`, {
+  const res = await fetch(`${API_BASE}/repos/${repoPath(repo)}/contents/${FILE_PATH}`, {
     method: 'HEAD',
     headers: headers(token),
   })
@@ -101,7 +116,7 @@ export async function getFileMeta(
   if (!res.ok) return null
 
   // HEAD doesn't return body, re-fetch with GET for sha
-  const getRes = await fetch(`${API_BASE}/repos/${repo}/contents/${FILE_PATH}`, {
+  const getRes = await fetch(`${API_BASE}/repos/${repoPath(repo)}/contents/${FILE_PATH}`, {
     headers: headers(token),
   })
   if (!getRes.ok) return null
@@ -110,7 +125,7 @@ export async function getFileMeta(
 }
 
 export async function validateCredentials(repo: string, token: string): Promise<boolean> {
-  const res = await fetch(`${API_BASE}/repos/${repo}`, {
+  const res = await fetch(`${API_BASE}/repos/${repoPath(repo)}`, {
     headers: headers(token),
   })
   return res.ok

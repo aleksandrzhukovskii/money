@@ -4,6 +4,7 @@ import { useAppStore } from '@/stores/app'
 import { BottomNav } from './BottomNav'
 import { Sidebar } from './Sidebar'
 import { PWAUpdatePrompt } from './PWAUpdatePrompt'
+import { SyncIndicator } from './SyncIndicator'
 
 export function AppShell() {
   const toastPosition = useAppStore(s => s.toastPosition)
@@ -11,6 +12,7 @@ export function AppShell() {
   return (
     <div className="flex h-dvh w-full">
       <PWAUpdatePrompt />
+      <SyncIndicator />
 
       {/* Desktop sidebar */}
       <Sidebar className="hidden md:flex" />

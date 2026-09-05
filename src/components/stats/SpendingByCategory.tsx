@@ -1,5 +1,6 @@
 import ReactECharts from 'echarts-for-react'
 import type { CategorySpending } from '@/db/queries/statistics'
+import { escapeHtml } from '@/lib/escapeHtml'
 
 interface SpendingByCategoryProps {
   data: CategorySpending[]
@@ -24,7 +25,7 @@ export function SpendingByCategory({ data }: SpendingByCategoryProps) {
     tooltip: {
       trigger: 'item' as const,
       formatter: (params: { name: string; value: number; percent: number }) =>
-        `${params.name}: ${(params.value / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })} (${params.percent}%)`,
+        `${escapeHtml(params.name)}: ${(params.value / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })} (${params.percent}%)`,
     },
     legend: {
       bottom: 0,
@@ -33,8 +34,8 @@ export function SpendingByCategory({ data }: SpendingByCategoryProps) {
         show: true,
         formatter: (params: { name: string }) => {
           const item = data.find((d) => d.name === params.name)
-          if (!item) return params.name
-          return `${params.name}: ${(item.total / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+          if (!item) return escapeHtml(params.name)
+          return `${escapeHtml(params.name)}: ${(item.total / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}`
         },
       },
     },

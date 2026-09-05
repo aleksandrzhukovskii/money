@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { useAuthStore } from '@/stores/auth'
 import { encrypt, decrypt } from '@/lib/crypto'
-import { validateCredentials } from '@/lib/githubSync'
+import { validateCredentials, isValidRepo } from '@/lib/githubSync'
+import { clearAllLocalData } from '@/lib/localData'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -50,13 +52,14 @@ export function clearCredentials() {
 type Mode = 'login' | 'setup'
 
 export function AuthScreen() {
-  const [mode, setMode] = useState<Mode>(hasStoredCredentials() ? 'login' : 'setup')
+  const [mode] = useState<Mode>(hasStoredCredentials() ? 'login' : 'setup')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [repo, setRepo] = useState('')
   const [token, setToken] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [confirmReset, setConfirmReset] = useState(false)
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
@@ -79,6 +82,10 @@ export function AuthScreen() {
       setError('Passwords do not match')
       return
     }
+    if (!isValidRepo(repo.trim())) {
+      setError('Repository must be in "owner/repo" format')
+      return
+    }
     setLoading(true)
     setError(null)
     try {
@@ -96,14 +103,13 @@ export function AuthScreen() {
     setLoading(false)
   }
 
-  function handleSwitchToSetup() {
-    clearCredentials()
-    setMode('setup')
-    setPassword('')
-    setConfirmPassword('')
-    setRepo('')
-    setToken('')
-    setError(null)
+  // Full local wipe, not just the credentials: this is also the escape hatch for
+  // a stale cached build or a half-migrated database.
+  async function handleResetDevice() {
+    setConfirmReset(false)
+    setLoading(true)
+    await clearAllLocalData()
+    window.location.reload()
   }
 
   if (mode === 'login') {
@@ -137,13 +143,21 @@ export function AuthScreen() {
                 type="button"
                 variant="link"
                 className="w-full"
-                onClick={handleSwitchToSetup}
+                onClick={() => setConfirmReset(true)}
               >
                 Use different account
               </Button>
             </form>
           </CardContent>
         </Card>
+        <ConfirmDialog
+          open={confirmReset}
+          onOpenChange={setConfirmReset}
+          title="Erase local data?"
+          description="Removes the stored token, database, caches and service worker from this device, then reloads. Anything already synced to GitHub is untouched; anything not yet synced is lost."
+          confirmLabel="Erase and reload"
+          onConfirm={handleResetDevice}
+        />
       </div>
     )
   }
