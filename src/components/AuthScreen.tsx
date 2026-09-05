@@ -117,7 +117,10 @@ export function AuthScreen() {
       <div className="flex h-dvh items-center justify-center p-4">
         <Card className="w-full max-w-sm">
           <CardHeader>
-            <CardTitle>Money Tracker</CardTitle>
+            {/* TEMPORARY (migration): version marker, so a device still serving a
+                stale cached build is obvious before relying on the full local wipe.
+                Revert to "Money Tracker" once every device is migrated. */}
+            <CardTitle>Money Tracker v2</CardTitle>
             <CardDescription>Enter your password to unlock</CardDescription>
           </CardHeader>
           <CardContent>
