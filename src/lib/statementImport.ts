@@ -31,8 +31,6 @@ export interface StatementRow {
 
 export interface StatementFile {
   version: number
-  source_file?: string
-  generated_at?: string
   rows: StatementRow[]
 }
 

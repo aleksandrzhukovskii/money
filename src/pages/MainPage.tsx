@@ -148,7 +148,7 @@ export function MainPage() {
 
   function effectiveRate(): number | null {
     const a = resolveAmount()
-    const c = parseNumber(convertedAmount)
+    const c = resolveConverted()
     if (!isNaN(a) && !isNaN(c) && a > 0) return c / a
     return rate
   }
@@ -157,6 +157,11 @@ export function MainPage() {
   function resolveAmount(): number {
     if (isExpression(amount)) return evalExpression(amount)
     return parseNumber(amount)
+  }
+  // Same for the converted box: what you were quoted is often a sum too.
+  function resolveConverted(): number {
+    if (isExpression(convertedAmount)) return evalExpression(convertedAmount)
+    return parseNumber(convertedAmount)
   }
 
   // --- Keyboard flow: From -> To -> Amount -> Enter saves ---
@@ -189,7 +194,7 @@ export function MainPage() {
 
   // Validation
   const amountValid = !isNaN(resolveAmount()) && resolveAmount() > 0
-  const crossValid = !isCrossCurrency || (parseNumber(convertedAmount) > 0)
+  const crossValid = !isCrossCurrency || (resolveConverted() > 0)
   const canSave = !!txType && amountValid && crossValid
 
   function handleAdd() {
@@ -200,7 +205,7 @@ export function MainPage() {
 
     const crossFields = isCrossCurrency
       ? {
-          converted_amount: parseNumber(convertedAmount) || null,
+          converted_amount: resolveConverted() || null,
           destination_currency: toItem.currency,
           exchange_rate: effectiveRate(),
         }
@@ -338,12 +343,22 @@ export function MainPage() {
                 <Label htmlFor="home-converted">Converted ({toItem!.currency})</Label>
                 <Input
                   id="home-converted"
-                  inputMode="decimal"
                   value={convertedAmount}
                   onChange={(e) => setConvertedAmount(e.target.value)}
-                  placeholder="0.00"
+                  onBlur={() => {
+                    if (isExpression(convertedAmount)) {
+                      const result = evalExpression(convertedAmount)
+                      if (!isNaN(result) && result >= 0) setConvertedAmount(String(Math.round(result * 100) / 100))
+                    }
+                  }}
+                  placeholder="0.00  (e.g. 15+18+25)"
                   disabled={rateLocked}
                 />
+                {isExpression(convertedAmount) && !isNaN(evalExpression(convertedAmount)) && (
+                  <p className="text-xs text-muted-foreground">
+                    = {Math.round(evalExpression(convertedAmount) * 100) / 100}
+                  </p>
+                )}
               </div>
               <Button
                 variant="ghost"
