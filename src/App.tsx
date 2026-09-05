@@ -27,18 +27,26 @@ export function App() {
   const [syncPhase, setSyncPhase] = useState<SyncPhase>('pending')
   const [syncError, setSyncError] = useState<string | null>(null)
   const [retryCount, setRetryCount] = useState(0)
+  // Which retry attempt the initial sync has already been started for. The
+  // effect below depends on both `isAuthenticated` and `db`, which can settle in
+  // separate commits — without this it fires twice and runs two overlapping
+  // syncs, each reporting "Synced".
+  const startedForRetry = useRef<number | null>(null)
 
   // Reset sync state on logout
   useEffect(() => {
     if (!isAuthenticated) {
       setSyncPhase('pending')
       setSyncError(null)
+      startedForRetry.current = null
     }
   }, [isAuthenticated])
 
   // Initial sync after auth
   useEffect(() => {
-    if (!isAuthenticated || !db || syncPhase === 'synced') return
+    if (!isAuthenticated || !db) return
+    if (startedForRetry.current === retryCount) return
+    startedForRetry.current = retryCount
 
     setSyncPhase('syncing')
     setSyncError(null)
@@ -61,7 +69,12 @@ export function App() {
       if (document.visibilityState === 'visible') {
         // Flush first: pull() replaces the entire database, so pulling with
         // unsynced local writes still pending would silently discard them.
-        backupRef.current.flushPush().then(() => backupRef.current.pull())
+        // If we did push, skip the pull — we just wrote the authoritative copy,
+        // and the Contents API can still be serving the pre-push SHA, which
+        // would import stale data back over it and report a second "Synced".
+        backupRef.current.flushPush().then((pushed) => {
+          if (!pushed) backupRef.current.pull()
+        })
       } else {
         // Backgrounding is the last reliable signal on iOS — don't wait out the debounce.
         backupRef.current.flushPush()

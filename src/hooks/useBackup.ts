@@ -130,13 +130,13 @@ export function useBackup() {
       sync().setStatus('syncing')
       const remote = await getFile(config.repo, config.token)
       if (!remote) {
-        sync().setStatus('idle')
+        sync().markIdle()
         return { ok: true, pulled: false }
       }
 
       // Skip if SHA hasn't changed
       if (_remoteSha && _remoteSha === remote.sha) {
-        sync().setStatus('idle')
+        sync().markIdle()
         return { ok: true, pulled: false }
       }
 
@@ -151,7 +151,7 @@ export function useBackup() {
         await persist()
       }
       markClean()
-      sync().markSynced()
+      sync().markIdle()
       return { ok: true, pulled: true }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
@@ -191,7 +191,7 @@ export function useBackup() {
         await persist()
       }
       markClean()
-      sync().markSynced()
+      sync().markIdle()
       return { ok: true }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
@@ -216,15 +216,19 @@ export function useBackup() {
    * Push right now, skipping the debounce. Called when the app is about to be
    * backgrounded and before a pull, since pull() replaces the whole database and
    * would otherwise discard local writes that never reached GitHub.
+   *
+   * Returns true if it actually pushed, so the caller can skip a pull that would
+   * only re-read what we just wrote.
    */
-  const flushPush = useCallback(async () => {
+  const flushPush = useCallback(async (): Promise<boolean> => {
     if (pushTimer.current) {
       clearTimeout(pushTimer.current)
       pushTimer.current = null
     }
-    if (!isDirty() || !getGitHubConfig()) return
+    if (!isDirty() || !getGitHubConfig()) return false
     const result = await push()
     if (!result.ok) toast.error(`Not synced to GitHub: ${result.error}`)
+    return result.ok
   }, [push])
 
   return {

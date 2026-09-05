@@ -4,7 +4,11 @@ import { toast } from 'sonner'
 import { useSyncStore } from '@/stores/sync'
 import { useBackup } from '@/hooks/useBackup'
 
-/** How long the "Synced" confirmation stays on screen after a successful push. */
+/**
+ * How long the "Synced" confirmation stays on screen. It appears only after a
+ * successful push — its whole purpose is to confirm your changes reached GitHub,
+ * so pulls and the sync at startup deliberately don't trigger it.
+ */
 const SYNCED_VISIBLE_MS = 4000
 
 export function SyncIndicator() {
