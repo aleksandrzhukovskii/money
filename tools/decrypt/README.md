@@ -14,19 +14,22 @@ cd tools/decrypt
 go build -o money-decrypt .
 ```
 
-Requires Go 1.24+ (for the standard library's `crypto/pbkdf2`). No dependencies.
+Requires Go 1.25+ (for the standard library's `crypto/pbkdf2`, and
+`golang.org/x/term` — the one dependency, used to turn off terminal echo at the
+password prompt).
 
 ## Use
 
-The password is read from `$MONEY_PASSWORD`, or from stdin if that's unset.
+The password is read from `$MONEY_PASSWORD`. Without it you're prompted, and
+nothing is echoed as you type; piped stdin still works for scripts.
 
 ```sh
 # Decrypt a backup exported from Settings -> Export Encrypted
 MONEY_PASSWORD='...' ./money-decrypt money-tracker-2026-09-05.enc
 # -> money-tracker-2026-09-05.db
 
-# Keep the password out of your shell history and environment
-read -rs PW && echo "$PW" | ./money-decrypt -out finances.db money-tracker.enc
+# Or let it prompt — the password stays out of your history, environment and screen
+./money-decrypt -out finances.db money-tracker.enc
 
 # Inspect it
 sqlite3 finances.db 'SELECT type, date, amount, comment FROM transactions LIMIT 10;'

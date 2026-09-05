@@ -36,7 +36,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
+
+	"golang.org/x/term"
 )
 
 const (
@@ -143,24 +147,72 @@ func readToken(path string) (string, error) {
 	return "", errors.New("no GitHub token: set $GITHUB_TOKEN or pass -token-file")
 }
 
-// readPassword prefers the environment so the password never reaches shell history.
+// readPassword prefers the environment so the password never reaches shell
+// history. At a terminal it turns echo off while you type, so the password stays
+// out of the screen, the scrollback and anyone's shoulder. Piped input
+// (`echo pw | money-decrypt ...`) still reads plainly.
 func readPassword() (string, error) {
 	if pw, ok := os.LookupEnv("MONEY_PASSWORD"); ok && pw != "" {
 		return pw, nil
 	}
-	info, err := os.Stdin.Stat()
-	if err == nil && info.Mode()&os.ModeCharDevice != 0 {
-		fmt.Fprint(os.Stderr, "Password (will echo — use MONEY_PASSWORD to avoid): ")
+
+	var line []byte
+	fd := int(os.Stdin.Fd())
+	if stdinIsTerminal() {
+		fmt.Fprint(os.Stderr, "Password: ")
+		typed, err := readNoEcho(fd)
+		// The Enter that ended the line wasn't echoed either, so move on
+		// ourselves or the next output lands on the prompt.
+		fmt.Fprintln(os.Stderr)
+		if err != nil {
+			return "", fmt.Errorf("reading password: %w", err)
+		}
+		line = typed
+	} else {
+		var err error
+		if line, err = io.ReadAll(os.Stdin); err != nil {
+			return "", fmt.Errorf("reading password: %w", err)
+		}
 	}
-	line, err := io.ReadAll(os.Stdin)
-	if err != nil {
-		return "", fmt.Errorf("reading password: %w", err)
-	}
+
 	pw := strings.TrimRight(string(line), "\r\n")
 	if pw == "" {
 		return "", errors.New("no password supplied")
 	}
 	return pw, nil
+}
+
+// Indirected so tests never take the terminal path: `go test` run from a shell
+// inherits a real tty on stdin and would sit there waiting for a password.
+var stdinIsTerminal = func() bool { return term.IsTerminal(int(os.Stdin.Fd())) }
+
+// readNoEcho reads a line with the terminal's echo turned off, and puts the
+// terminal back the way it found it if we're interrupted mid-prompt. Without
+// that, Ctrl-C at a password prompt leaves the shell echoing nothing and the
+// user typing blind until they think to run `stty sane`.
+func readNoEcho(fd int) ([]byte, error) {
+	state, err := term.GetState(fd)
+	if err != nil {
+		return nil, err
+	}
+
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
+	defer signal.Stop(sig)
+
+	done := make(chan struct{})
+	defer close(done)
+	go func() {
+		select {
+		case <-sig:
+			_ = term.Restore(fd, state)
+			fmt.Fprintln(os.Stderr)
+			os.Exit(130) // 128 + SIGINT, the same code a shell reports
+		case <-done:
+		}
+	}()
+
+	return term.ReadPassword(fd)
 }
 
 func defaultOutput(in string, isBase64 bool) string {
@@ -197,12 +249,13 @@ func run() error {
 			"With -migrate it does that against the synced file in the private repo:\n"+
 			"fetch, back up locally, re-encrypt, verify, upload.\n"+
 			"The iteration count is detected automatically.\n\n"+
-			"The password is read from $MONEY_PASSWORD, or stdin if unset.\n"+
+			"The password is read from $MONEY_PASSWORD, or prompted for without\n"+
+			"echoing; piped stdin still works.\n"+
 			"The GitHub token is read from $GITHUB_TOKEN or -token-file, never a flag,\n"+
 			"so it stays out of shell history and the process list.\n\n"+
 			"Examples:\n"+
 			"  MONEY_PASSWORD=... money-decrypt money-tracker.enc\n"+
-			"  read -rs PW && echo \"$PW\" | money-decrypt -out db.sqlite money-tracker.enc\n"+
+			"  money-decrypt -out db.sqlite money-tracker.enc          # prompts, no echo\n"+
 			"  money-decrypt -convert -out new.enc money-tracker.enc   # convert a local file\n"+
 			"  money-decrypt -migrate -repo me/money-data              # convert what's synced\n"+
 			"  money-decrypt -base64 credentials.txt                   # recover the token\n\nFlags:\n")

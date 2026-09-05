@@ -11,8 +11,10 @@ import { getSetting, setSetting } from '@/db/queries/settings'
 import { CurrencySelect } from '@/components/CurrencySelect'
 import type { CardSize } from '@/stores/app'
 import { CsvImportDialog } from './CsvImportDialog'
+import { StatementImportDialog } from './StatementImportDialog'
 import { parseCsv, executeCsvImport } from '@/lib/csvImport'
 import { clearAllLocalData } from '@/lib/localData'
+import { executeStatementImport, type Preview } from '@/lib/statementImport'
 import type { ParseResult, EntityDef } from '@/lib/csvImport'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -45,6 +47,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const cardSize = useAppStore(s => s.cardSize)
   const [csvImportData, setCsvImportData] = useState<ParseResult | null>(null)
   const [csvImportOpen, setCsvImportOpen] = useState(false)
+  const [statementOpen, setStatementOpen] = useState(false)
 
   useEffect(() => {
     if (open && db) {
@@ -90,6 +93,23 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       toast.error(`Import failed: ${err instanceof Error ? err.message : String(err)}`)
     }
     if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  function handleStatementConfirm(preview: Preview) {
+    if (!db) return
+    try {
+      const count = executeStatementImport(db, preview.rows)
+      persistDebounced()
+      useIncomesStore.getState().load(db)
+      useBudgetsStore.getState().load(db)
+      useSpendingTypesStore.getState().load(db)
+      useTagsStore.getState().load(db)
+      toast.success(`Imported ${count} transaction${count === 1 ? '' : 's'}`)
+      setStatementOpen(false)
+      onOpenChange(false)
+    } catch (err) {
+      toast.error(`Import failed: ${err instanceof Error ? err.message : String(err)}`)
+    }
   }
 
   async function handleLogout() {
@@ -271,6 +291,9 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               <Button variant="outline" size="sm" onClick={() => csvInputRef.current?.click()}>
                 Import CSV
               </Button>
+              <Button variant="outline" size="sm" onClick={() => setStatementOpen(true)}>
+                Import Statement
+              </Button>
             </div>
             <input
               ref={fileInputRef}
@@ -315,6 +338,13 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <StatementImportDialog
+      open={statementOpen}
+      onOpenChange={setStatementOpen}
+      db={db}
+      onConfirm={handleStatementConfirm}
+    />
 
     {csvImportData && (
       <CsvImportDialog

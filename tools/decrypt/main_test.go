@@ -3,7 +3,10 @@ package main
 import (
 	"bytes"
 	"encoding/base64"
+	"os"
 	"testing"
+
+	"golang.org/x/term"
 )
 
 // Both fixtures were produced by the browser implementation (src/lib/crypto.ts,
@@ -152,5 +155,43 @@ func TestDefaultOutput(t *testing.T) {
 	}
 	if got := defaultOutput("creds.txt", true); got != "-" {
 		t.Errorf("defaultOutput(base64) = %q", got)
+	}
+}
+
+// Turning echo off needs a real terminal, which a test doesn't have. What is
+// testable is everything around it: the environment still wins, piped input is
+// still read, and an empty answer is still refused.
+func TestReadPasswordWithoutATerminal(t *testing.T) {
+	stdinIsTerminal = func() bool { return false }
+	t.Cleanup(func() { stdinIsTerminal = func() bool { return term.IsTerminal(int(os.Stdin.Fd())) } })
+
+	pipe := func(t *testing.T, content string) {
+		t.Helper()
+		r, w, err := os.Pipe()
+		if err != nil {
+			t.Fatal(err)
+		}
+		saved := os.Stdin
+		os.Stdin = r
+		t.Cleanup(func() { os.Stdin = saved; r.Close() })
+		go func() { w.WriteString(content); w.Close() }()
+	}
+
+	t.Setenv("MONEY_PASSWORD", "from-env")
+	pipe(t, "from-stdin\n")
+	if pw, err := readPassword(); err != nil || pw != "from-env" {
+		t.Errorf("with the environment set: %q %v, want \"from-env\"", pw, err)
+	}
+
+	// An empty variable means "ask me", not "the password is empty".
+	t.Setenv("MONEY_PASSWORD", "")
+	pipe(t, "from-stdin\n")
+	if pw, err := readPassword(); err != nil || pw != "from-stdin" {
+		t.Errorf("piped: %q %v, want \"from-stdin\"", pw, err)
+	}
+
+	pipe(t, "\n")
+	if _, err := readPassword(); err == nil {
+		t.Error("an empty password was accepted")
 	}
 }

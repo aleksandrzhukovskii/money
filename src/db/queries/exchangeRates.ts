@@ -15,6 +15,30 @@ export function getExchangeRate(
   return result[0]!.values[0]![0] as number
 }
 
+/**
+ * Rate for a pair as of a date, taking the most recent one on or before it and
+ * falling back to any rate for the pair. Matches how statistics convert
+ * historical transactions — an exact-date lookup almost never hits for rows
+ * imported from an old statement.
+ */
+export function getExchangeRateAsOf(
+  db: Database,
+  baseCurrency: string,
+  targetCurrency: string,
+  date: string,
+): number | null {
+  const onOrBefore = db.exec(
+    `SELECT rate FROM exchange_rates
+     WHERE base_currency = ? AND target_currency = ? AND "date" <= ?
+     ORDER BY "date" DESC LIMIT 1`,
+    [baseCurrency, targetCurrency, date],
+  )
+  if (onOrBefore.length > 0 && onOrBefore[0]!.values.length > 0) {
+    return onOrBefore[0]!.values[0]![0] as number
+  }
+  return getExchangeRate(db, baseCurrency, targetCurrency)
+}
+
 export function upsertExchangeRate(
   db: Database,
   data: { base_currency: string; target_currency: string; rate: number; date: string },
